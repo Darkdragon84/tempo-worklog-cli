@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, time, timedelta, date
+from datetime import datetime, timedelta, date
+
+from typing_extensions import Self
 
 from tempo_worklog_creator.constants import (
     DAY_START,
@@ -9,24 +11,23 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
+from tempo_worklog_creator.io_util import SaveLoad
 
 
 @dataclass
-class TimeSpan:
-    start: datetime | time
-    end: datetime | time | timedelta
+class TimeSpan(SaveLoad):
+    start: datetime
+    end: datetime
 
     def __post_init__(self) -> None:
-        if isinstance(self.start, time):
-            self.start = datetime.combine(date.min, self.start)
-        if isinstance(self.end, time):
-            self.end = datetime.combine(date.min, self.end)
-        elif isinstance(self.end, timedelta):
-            self.end = self.start + self.end
         self.start = self.start.replace(microsecond=0)
         self.end = self.end.replace(microsecond=0)
         if self.end <= self.start:
             raise ValueError(f"end time {self.end} must be greater than start time {self.start}")
+
+    @classmethod
+    def from_start_and_delta(cls, start: datetime, delta: timedelta) -> Self:
+        return cls(start=start, end=start + delta)
 
     @property
     def duration(self) -> timedelta:
@@ -64,6 +65,8 @@ class TimeSpan:
         return self.subtract(other)
 
 
-FULL_DAY = TimeSpan(start=DAY_START, end=DAILY_WORKLOAD)
+FULL_DAY = TimeSpan.from_start_and_delta(start=DAY_START, delta=DAILY_WORKLOAD)
 MORNING = TimeSpan(start=DAY_START, end=LUNCH_BREAK_START)
-AFTERNOON = TimeSpan(start=LUNCH_BREAK_END, end=DAILY_WORKLOAD - MORNING.duration)
+AFTERNOON = TimeSpan.from_start_and_delta(
+    start=LUNCH_BREAK_END, delta=DAILY_WORKLOAD - MORNING.duration
+)

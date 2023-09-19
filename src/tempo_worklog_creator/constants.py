@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta, time
+from datetime import timedelta, datetime
 
 AUTHOR = "author"
 ACCOUNT_ID = "accountId"
@@ -21,6 +21,6 @@ HOLIDAYS_ISSUE = "PP-7"
 JOINT_SEMINAR = "RES-123"
 
 DAILY_WORKLOAD = timedelta(seconds=27720)  # 7.7h in seconds
-DAY_START = time(hour=9)
-LUNCH_BREAK_START = time(hour=13)
-LUNCH_BREAK_END = time(hour=14)
+DAY_START = datetime(year=1, month=1, day=1, hour=9)
+LUNCH_BREAK_START = datetime(year=1, month=1, day=1, hour=13)
+LUNCH_BREAK_END = datetime(year=1, month=1, day=1, hour=14)

@@ -1,0 +1,25 @@
+# from packaging
+**/build/
+**/dist/
+
+# Python Cache
+**/__pycache__
+
+# Python egg metadata, from setuptoools
+*.egg-info/
+
+# pycharm configuration
+.idea/
+
+# pytest
+**/.pytest_cache
+
+# vscode configuration
+.env
+.vscode/
+
+# macos
+**/.DS_Store
+
+# artifacts
+*.pkl

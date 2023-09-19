@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.distutils.bdist_wheel]
+python-tag = "py310"  # this fixes the python tag in the built wheel to py310 instead of just py3
+
+[project]
+version = "0.0.1"
+name = "tempo-worklog-creator"
+description = "CLI for creating tempo worklogs on Jira"
+readme = "README.md"
+requires-python = "==3.10.*"  # pin to 3.10
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "jira",
+    "tempo-api-python-client",
+    "python-dotenv"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black[d]"
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]

@@ -24,7 +24,7 @@ from tempo_worklog_creator.time_span import TimeSpan
 @dataclass
 class WorkLog(SaveLoad):
     account_id: str
-    issue_id: int | str  # this is the integer id, not str-int (like e.g. PP-1)
+    issue_id: int  # this is the integer id, not str-int (like e.g. PP-1)
     time_span: TimeSpan
     description: str
     worklog_id: int | None = None

@@ -228,7 +228,7 @@ class WorkLogCreator:
                 work_log = self.create_log(
                     WorkLog(
                         account_id=self.user_id,
-                        issue_id=self.jira_issue(issue).id,
+                        issue_id=int(self.jira_issue(issue).id),
                         time_span=time_span.change_date(day),
                         description=description,
                     )
@@ -270,7 +270,7 @@ class WorkLogCreator:
             self.create_log(
                 WorkLog(
                     account_id=self.user_id,
-                    issue_id=self.jira_issue(COMPANY_MEETINGS).id,
+                    issue_id=int(self.jira_issue(COMPANY_MEETINGS).id),
                     time_span=TimeSpan.from_start_and_delta(
                         start=datetime.combine(monday, time(hour=9, minute=30)),
                         delta=timedelta(minutes=30),
@@ -281,7 +281,7 @@ class WorkLogCreator:
             self.create_log(
                 WorkLog(
                     account_id=self.user_id,
-                    issue_id=self.jira_issue(COMPILER_STANDUP).id,
+                    issue_id=int(self.jira_issue(COMPILER_STANDUP).id),
                     time_span=TimeSpan.from_start_and_delta(
                         start=datetime.combine(monday, time(hour=10)), delta=timedelta(minutes=90)
                     ),
@@ -292,7 +292,7 @@ class WorkLogCreator:
             self.create_log(
                 WorkLog(
                     account_id=self.user_id,
-                    issue_id=self.jira_issue(DEV_MEETINGS).id,
+                    issue_id=int(self.jira_issue(DEV_MEETINGS).id),
                     time_span=TimeSpan.from_start_and_delta(
                         start=datetime.combine(wednesday, time(hour=9)), delta=timedelta(minutes=90)
                     ),
@@ -302,7 +302,7 @@ class WorkLogCreator:
             self.create_log(
                 WorkLog(
                     account_id=self.user_id,
-                    issue_id=self.jira_issue(DEV_MEETINGS).id,
+                    issue_id=int(self.jira_issue(DEV_MEETINGS).id),
                     time_span=TimeSpan.from_start_and_delta(
                         start=datetime.combine(wednesday, time(hour=11)),
                         delta=timedelta(minutes=60),
@@ -314,7 +314,7 @@ class WorkLogCreator:
             self.create_log(
                 WorkLog(
                     account_id=self.user_id,
-                    issue_id=self.jira_issue(JOINT_SEMINAR).id,
+                    issue_id=int(self.jira_issue(JOINT_SEMINAR).id),
                     time_span=TimeSpan.from_start_and_delta(
                         start=datetime.combine(thursday, time(hour=14)), delta=timedelta(minutes=60)
                     ),

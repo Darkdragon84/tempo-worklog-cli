@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, date
+from typing import Type
 
 from typing_extensions import Self
 
@@ -11,7 +12,7 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
-from tempo_worklog_creator.io_util import SaveLoad
+from tempo_worklog_creator.io_util import SaveLoad, converter
 
 
 @dataclass
@@ -70,3 +71,15 @@ MORNING = TimeSpan(start=DAY_START, end=LUNCH_BREAK_START)
 AFTERNOON = TimeSpan.from_start_and_delta(
     start=LUNCH_BREAK_END, delta=DAILY_WORKLOAD - MORNING.duration
 )
+
+
+def unstructure_datetime(date_time: datetime) -> str:
+    return date_time.isoformat()
+
+
+def structure_datetime(date_time_str: str, _: Type[datetime]) -> datetime:
+    return datetime.fromisoformat(date_time_str)
+
+
+converter.register_unstructure_hook(datetime, unstructure_datetime)
+converter.register_structure_hook(datetime, structure_datetime)

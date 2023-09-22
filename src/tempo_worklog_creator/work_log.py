@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, replace
 from datetime import datetime, date, time, timedelta
-from typing import Any
+from typing import Any, Type
+
+from jira import JIRA
+
+from tempo_worklog_creator.io_util import converter
 
 from tempo_worklog_creator.constants import (
     AUTHOR_ACCOUNT_ID,
@@ -23,19 +28,18 @@ from tempo_worklog_creator.time_span import TimeSpan
 
 @dataclass
 class WorkLog(SaveLoad):
-    account_id: str
-    issue_id: int  # this is the integer id, not str-int (like e.g. PP-1)
+    issue: str  # str-int (like e.g. PP-1)
     time_span: TimeSpan
     description: str
     worklog_id: int | None = None
 
-    def as_tempo_dict(self) -> dict[str, Any]:
+    def as_tempo_dict(self, jira: JIRA) -> dict[str, Any]:
         """
         dict representation for TEMPO API
         """
         return {
-            AUTHOR_ACCOUNT_ID: self.account_id,
-            ISSUE_ID: self.issue_id,
+            AUTHOR_ACCOUNT_ID: jira.myself()[ACCOUNT_ID],
+            ISSUE_ID: jira.issue(self.issue).id,
             START_DATE: self.time_span.start.date().isoformat(),
             START_TIME: self.time_span.start.time().isoformat(),
             TIME_SPENT_SECONDS: int(self.time_span.duration.total_seconds()),
@@ -44,20 +48,68 @@ class WorkLog(SaveLoad):
         }
 
     @classmethod
-    def from_tempo_dict(cls, log_dict: dict[str, Any]):
+    def from_tempo_dict(cls, log_dict: dict[str, Any], jira: JIRA):
         """
         create from TEMPO API dict representation
         """
         return cls(
-            account_id=log_dict[AUTHOR][ACCOUNT_ID],
-            issue_id=log_dict[ISSUE][ID],
-            time_span=TimeSpan.from_start_and_delta(
+            issue=jira.issue(log_dict[ISSUE][ID]).key,
+            time_span=TimeSpan(
                 start=datetime.combine(
                     date.fromisoformat(log_dict[START_DATE]),
                     time.fromisoformat(log_dict[START_TIME]),
                 ),
-                delta=timedelta(seconds=log_dict[TIME_SPENT_SECONDS]),
+                duration=timedelta(seconds=log_dict[TIME_SPENT_SECONDS]),
             ),
             description=log_dict[DESCRIPTION],
             worklog_id=log_dict.get(TEMPO_WORKLOG_ID),
         )
+
+
+@dataclass
+class WorkLogSequence(SaveLoad):
+    start_date: date
+    day_to_logs: dict[int, list[WorkLog]]
+
+    @classmethod
+    def from_worklogs(cls, work_logs: list[WorkLog]):
+        start_date = min([log.time_span.start.date() for log in work_logs])
+        day_to_logs = defaultdict(list)
+        for log in work_logs:
+            day = (log.time_span.start.date() - start_date).days
+            time_span = replace(
+                log.time_span, start=log.time_span.start.replace(year=1, month=1, day=1)
+            )
+            day_to_logs[day].append(replace(log, time_span=time_span))
+        return cls(start_date=start_date, day_to_logs=day_to_logs)
+
+    @property
+    def worklogs(self) -> list[WorkLog]:
+        return [
+            replace(
+                log,
+                time_span=replace(
+                    log.time_span,
+                    start=datetime.combine(
+                        self.start_date + timedelta(days=day), log.time_span.start.time()
+                    ),
+                ),
+            )
+            for day, logs in self.day_to_logs.items()
+            for log in logs
+        ]
+
+
+def unstructure_date(d: date) -> str:
+    return d.isoformat()
+
+
+def structure_date(d_str: str, _: Type[date]) -> date:
+    return date.fromisoformat(d_str)
+
+
+converter.register_unstructure_hook(date, unstructure_date)
+converter.register_structure_hook(date, structure_date)
+
+# def unstructure_worklog_sequence(seq: WorkLogSequence) -> dict[str, Any]:
+#     start_date = min([work_log for work_log in seq.work_logs])

@@ -101,7 +101,7 @@ class WorkLogCreator:
         """
         # this gets all logs on all DAYS that have an overlap with `time_span`
         worklogs = [
-            WorkLog.from_tempo_dict(log)
+            WorkLog.from_tempo_dict(log, self.jira)
             for log in self._tempo.get_worklogs(time_span.start, time_span.end)
         ]
         # filter out logs that actually overlap with time_spane
@@ -123,10 +123,10 @@ class WorkLogCreator:
 
         self._adapt_existing_logs(work_log)
         new_log = None
-        data = work_log.as_tempo_dict()
+        data = work_log.as_tempo_dict(self.jira)
         data.pop(TEMPO_WORKLOG_ID, None)  # payload can't contain existing worklog id
         try:
-            new_log = WorkLog.from_tempo_dict(self._tempo.post("worklogs", data=data))
+            new_log = WorkLog.from_tempo_dict(self._tempo.post("worklogs", data=data), self.jira)
             self.logger.info(f"created {new_log}")
         except (Exception, SystemExit) as e:
             self.logger.error(e)
@@ -145,14 +145,14 @@ class WorkLogCreator:
         if work_log.worklog_id is None:
             raise ValueError(f"{work_log} has no work log id.")
 
-        data = work_log.as_tempo_dict()
+        data = work_log.as_tempo_dict(self.jira)
         worklog_id = data.pop(TEMPO_WORKLOG_ID)  # payload can't contain existing worklog id
         data.pop(ISSUE_ID, None)  # payload can't contain issue id (must remain fixed)
 
         updated_log = None
         try:
             updated_log = WorkLog.from_tempo_dict(
-                self._tempo.put(f"worklogs/{worklog_id}", data=data)
+                self._tempo.put(f"worklogs/{worklog_id}", data=data), self.jira
             )
             self.logger.info(f"updated {updated_log}")
         except (Exception, SystemExit) as e:
@@ -168,7 +168,7 @@ class WorkLogCreator:
         :return:
         """
         try:
-            log = WorkLog.from_tempo_dict(self._tempo.get(f"worklogs/{work_log_id}"))
+            log = WorkLog.from_tempo_dict(self._tempo.get(f"worklogs/{work_log_id}"), self.jira)
             self._tempo.delete(f"worklogs/{work_log_id}")
             self.logger.info(f"deleted {log}")
         except (Exception, SystemExit) as e:
@@ -227,8 +227,7 @@ class WorkLogCreator:
             for time_span in time_spans:
                 work_log = self.create_log(
                     WorkLog(
-                        account_id=self.user_id,
-                        issue_id=int(self.jira_issue(issue).id),
+                        issue=issue,
                         time_span=time_span.change_date(day),
                         description=description,
                     )
@@ -267,59 +266,48 @@ class WorkLogCreator:
         thursday = wednesday + timedelta(days=1)
         logs = [
             # MONDAY
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=int(self.jira_issue(COMPANY_MEETINGS).id),
-                    time_span=TimeSpan.from_start_and_delta(
-                        start=datetime.combine(monday, time(hour=9, minute=30)),
-                        delta=timedelta(minutes=30),
-                    ),
-                    description="weekly team meeting",
-                )
+            WorkLog(
+                issue=COMPANY_MEETINGS,
+                time_span=TimeSpan(
+                    start=datetime.combine(monday, time(hour=9, minute=30)),
+                    duration=timedelta(minutes=30),
+                ),
+                description="weekly team meeting",
             ),
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=int(self.jira_issue(COMPILER_STANDUP).id),
-                    time_span=TimeSpan.from_start_and_delta(
-                        start=datetime.combine(monday, time(hour=10)), delta=timedelta(minutes=90)
-                    ),
-                    description="weekly compiler standup",
-                )
+            WorkLog(
+                issue=COMPILER_STANDUP,
+                time_span=TimeSpan(
+                    start=datetime.combine(monday, time(hour=10)),
+                    duration=timedelta(minutes=90),
+                ),
+                description="weekly compiler standup",
             ),
             # WEDNESDAY
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=int(self.jira_issue(DEV_MEETINGS).id),
-                    time_span=TimeSpan.from_start_and_delta(
-                        start=datetime.combine(wednesday, time(hour=9)), delta=timedelta(minutes=90)
-                    ),
-                    description="weekly matrix meetings",
-                )
+            WorkLog(
+                issue=DEV_MEETINGS,
+                time_span=TimeSpan(
+                    start=datetime.combine(wednesday, time(hour=9)),
+                    duration=timedelta(minutes=90),
+                ),
+                description="weekly matrix meetings",
             ),
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=int(self.jira_issue(DEV_MEETINGS).id),
-                    time_span=TimeSpan.from_start_and_delta(
-                        start=datetime.combine(wednesday, time(hour=11)),
-                        delta=timedelta(minutes=60),
-                    ),
-                    description="weekly matrix meetings",
-                )
+            WorkLog(
+                issue=DEV_MEETINGS,
+                time_span=TimeSpan(
+                    start=datetime.combine(wednesday, time(hour=11)),
+                    duration=timedelta(minutes=60),
+                ),
+                description="weekly matrix meetings",
             ),
             # THURSDAY
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=int(self.jira_issue(JOINT_SEMINAR).id),
-                    time_span=TimeSpan.from_start_and_delta(
-                        start=datetime.combine(thursday, time(hour=14)), delta=timedelta(minutes=60)
-                    ),
-                    description="weekly joint seminar",
-                )
+            WorkLog(
+                issue=JOINT_SEMINAR,
+                time_span=TimeSpan(
+                    start=datetime.combine(thursday, time(hour=14)),
+                    duration=timedelta(minutes=60),
+                ),
+                description="weekly joint seminar",
             ),
         ]
-        return logs
+        created_logs = [self.create_log(log) for log in logs]
+        return created_logs

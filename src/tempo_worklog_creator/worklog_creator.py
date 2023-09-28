@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import os
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Callable, TypeVar, Any, Iterator
 
 from jira import JIRA, Issue
 from tempoapiclient.client_v4 import Tempo
@@ -20,9 +22,18 @@ from tempo_worklog_creator.io_util import load_yaml, converter
 from tempo_worklog_creator.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
 from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
 
+T = TypeVar("T")
+
 
 class WorkLogCreator:
-    def __init__(self, url: str, user: str, jira_token: str, tempo_token: str) -> None:
+    def __init__(
+        self,
+        url: str,
+        user: str,
+        jira_token: str,
+        tempo_token: str,
+        num_threads: int = os.cpu_count(),
+    ) -> None:
         self._url = url
         self._user = user
 
@@ -30,6 +41,7 @@ class WorkLogCreator:
         self._user_id = self._jira.myself()[ACCOUNT_ID]
 
         self._tempo = Tempo(auth_token=tempo_token)
+        self._num_threads = num_threads
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @property
@@ -56,6 +68,8 @@ class WorkLogCreator:
 
     def _adapt_existing_logs(self, work_log: WorkLog):
         """
+        fetch all existing logs, that overlap with `work_log` and cut away the overlaps from the
+        existing logs or delete them
 
         :param work_log:
         :return:
@@ -129,6 +143,21 @@ class WorkLogCreator:
             self.logger.error(f"payload: {data}")
         return new_log
 
+    def _batch_perform_action(self, fun: Callable[[T], Any], data: Iterable[T]) -> Iterator[Any]:
+        with ThreadPoolExecutor(max_workers=self._num_threads) as pool:
+            results = pool.map(fun, data)
+        return results
+
+    def create_logs(self, worklogs: Iterable[WorkLog]):
+        """
+        create a batch of worklogs asynchronously
+        :param worklogs:
+        :return:
+        """
+        return [
+            log for log in self._batch_perform_action(self.create_log, worklogs) if log is not None
+        ]
+
     def update_log(self, work_log: WorkLog) -> WorkLog | None:
         """
         update an existing work log with new data in `work_log`. `work_log.worklog_id` must contain
@@ -177,16 +206,16 @@ class WorkLogCreator:
         :param time_span:
         :return:
         """
-        for log in self.get_worklogs(time_span):
-            self.delete_log(log.worklog_id)
+        worklog_ids = [log.worklog_id for log in self.get_worklogs(time_span)]
+        self._batch_perform_action(self.delete_log, worklog_ids)
 
-    def _batch_create_logs(
-            self,
-            start_date: date,
-            end_date: date,
-            issue: str,
-            time_spans: TimeSpan | Iterable[TimeSpan],
-            descriptions: str | Iterable[str],
+    def _create_log_collection(
+        self,
+        start_date: date,
+        end_date: date,
+        issue: str,
+        time_spans: TimeSpan | Iterable[TimeSpan],
+        descriptions: str | Iterable[str],
     ) -> list[WorkLog]:
         """
         add multiple entries `start_date` to `end_date`. If `time_spans` and `descriptions` are
@@ -204,7 +233,6 @@ class WorkLogCreator:
         :return: list of created WorkLogs
         """
         duration = end_date - start_date
-        work_logs = []
         if isinstance(descriptions, str):
             descriptions = [descriptions] * (duration.days + 1)
         if isinstance(time_spans, TimeSpan):
@@ -213,27 +241,34 @@ class WorkLogCreator:
         if duration.days + 1 != len(descriptions):
             warnings.warn(f"got {len(descriptions)} descriptions for {duration.days + 1} days.")
 
+        worklogs = []
         for i, description in zip(range(duration.days + 1), descriptions):
             day = start_date + timedelta(days=i)
             # don't add entries for weekends
             if day.weekday() > 4:
                 continue
 
-            for time_span in time_spans:
-                work_log = self.create_log(
-                    WorkLog(
-                        issue=issue,
-                        time_span=time_span.change_date(day),
-                        description=description,
-                    )
+            worklogs += [
+                WorkLog(
+                    issue=issue,
+                    time_span=time_span.change_date(day),
+                    description=description,
                 )
-                if work_log:
-                    work_logs.append(work_log)
+                for time_span in time_spans
+            ]
 
-        return work_logs
+        return self.create_logs(worklogs)
 
     def create_holidays(self, start_date: date, end_date: date) -> list[WorkLog]:
-        return self._batch_create_logs(
+        """
+        creates holiday entries for 7.7h for each day from `start_date` to `end_date` without
+        lunch break
+
+        :param start_date:
+        :param end_date:
+        :return:
+        """
+        return self._create_log_collection(
             start_date=start_date,
             end_date=end_date,
             issue=HOLIDAYS_ISSUE,
@@ -242,9 +277,22 @@ class WorkLogCreator:
         )
 
     def create_workdays(
-            self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
+        self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
     ) -> list[WorkLog]:
-        return self._batch_create_logs(
+        """
+        creates full workdays for the same issue for every day from `start_date` to `end_date`,
+        inserting a lunch break from 13:00 to 14:00.
+        If description is a single string, it will be used for all created entries. If it is an
+        iterable it has to contain as many different entries as work logs that will be created:
+        2 * ((end_date - start_date).days + 1)
+
+        :param start_date:
+        :param end_date:
+        :param issue:
+        :param descriptions:
+        :return:
+        """
+        return self._create_log_collection(
             start_date=start_date,
             end_date=end_date,
             issue=issue,
@@ -253,22 +301,28 @@ class WorkLogCreator:
         )
 
     def create_logs_from_yaml(self, filepath: Path | str):
+        """
+        loads logs from a yaml file and creates them.
+        Supported yaml formats:
+          - dict representation of WorkLogSequence
+          - list of dict representation of WorkLog
+
+        :param filepath:
+        :return:
+        """
         filepath = Path(filepath)
         if not filepath.is_file():
             raise FileNotFoundError(f"{filepath} not found")
 
         data = load_yaml(filepath)
-        worklogs = []
         try:
-            sequence = WorkLogSequence.from_dict(data)
-            worklogs = sequence.worklogs
+            if isinstance(data, dict):
+                sequence = WorkLogSequence.from_dict(data)
+                worklogs = sequence.worklogs
+            elif isinstance(data, list):
+                worklogs = converter.structure(data, list[WorkLog])
+            else:
+                raise ValueError(f"data format in {filepath} not supported.")
+            self.create_logs(worklogs)
         except Exception as e:
-            pass
-
-        try:
-            worklogs = converter.structure(data, list[WorkLog])
-        except Exception as e:
-            pass
-
-        for log in worklogs:
-            self.create_log(log)
+            self.logger.exception("log creation failed: %s", e, exc_info=True)

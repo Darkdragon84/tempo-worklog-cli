@@ -20,8 +20,6 @@ from tempo_worklog_creator.io_util import load_yaml, converter
 from tempo_worklog_creator.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
 from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
 
-logging.basicConfig(level=logging.INFO)
-
 
 class WorkLogCreator:
     def __init__(self, url: str, user: str, jira_token: str, tempo_token: str) -> None:
@@ -199,12 +197,11 @@ class WorkLogCreator:
         :param start_date: day of first entry
         :param end_date: day of last entry
         :param issue: name of the issue
-        :param time_spans: time span for each entry. if single element, all entries will have the
+        :param time_spans: time span for each entry. if single element, all entries will have
                            the same time span
         :param descriptions: description for each entry. if single element, all entries will have
-        the
                              the same description
-        :return: list of response jsons
+        :return: list of created WorkLogs
         """
         duration = end_date - start_date
         work_logs = []

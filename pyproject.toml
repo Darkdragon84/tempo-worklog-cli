@@ -16,6 +16,7 @@ classifiers = [
 ]
 dependencies = [
     "cattrs",
+    "click",
     "jira",
     "python-dotenv",
     "ruamel.yaml",

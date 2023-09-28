@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, Any
+from typing import Any
 
 from cattrs import Converter
 from ruamel.yaml import YAML

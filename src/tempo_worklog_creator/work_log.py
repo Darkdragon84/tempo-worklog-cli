@@ -7,8 +7,6 @@ from typing import Any, Type
 
 from jira import JIRA
 
-from tempo_worklog_creator.io_util import converter
-
 from tempo_worklog_creator.constants import (
     AUTHOR_ACCOUNT_ID,
     ISSUE_ID,
@@ -16,13 +14,13 @@ from tempo_worklog_creator.constants import (
     START_TIME,
     TIME_SPENT_SECONDS,
     DESCRIPTION,
-    AUTHOR,
     ACCOUNT_ID,
     ISSUE,
     ID,
     TEMPO_WORKLOG_ID,
 )
 from tempo_worklog_creator.io_util import SaveLoad
+from tempo_worklog_creator.io_util import converter
 from tempo_worklog_creator.time_span import TimeSpan
 
 
@@ -110,6 +108,3 @@ def structure_date(d_str: str, _: Type[date]) -> date:
 
 converter.register_unstructure_hook(date, unstructure_date)
 converter.register_structure_hook(date, structure_date)
-
-# def unstructure_worklog_sequence(seq: WorkLogSequence) -> dict[str, Any]:
-#     start_date = min([work_log for work_log in seq.work_logs])

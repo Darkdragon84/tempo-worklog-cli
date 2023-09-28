@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, time, timedelta, date
+from datetime import datetime, timedelta, date, time
+from typing import Type
+
+from typing_extensions import Self
 
 from tempo_worklog_creator.constants import (
     DAY_START,
@@ -9,40 +12,41 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
+from tempo_worklog_creator.io_util import SaveLoad, converter
 
 
 @dataclass
-class TimeSpan:
-    start: datetime | time
-    end: datetime | time | timedelta
+class TimeSpan(SaveLoad):
+    start: datetime
+    duration: timedelta
 
     def __post_init__(self) -> None:
-        if isinstance(self.start, time):
-            self.start = datetime.combine(date.min, self.start)
-        if isinstance(self.end, time):
-            self.end = datetime.combine(date.min, self.end)
-        elif isinstance(self.end, timedelta):
-            self.end = self.start + self.end
         self.start = self.start.replace(microsecond=0)
-        self.end = self.end.replace(microsecond=0)
-        if self.end <= self.start:
-            raise ValueError(f"end time {self.end} must be greater than start time {self.start}")
+        self.duration = self.duration - timedelta(microseconds=self.duration.microseconds)
+
+    @classmethod
+    def from_start_and_end(cls, start: datetime, end: datetime) -> Self:
+        if end <= start:
+            raise ValueError(f"end time {end} must be greater than start time {start}")
+        return cls(start=start, duration=end - start)
 
     @property
-    def duration(self) -> timedelta:
-        return self.end - self.start
+    def end(self) -> datetime:
+        return self.start + self.duration
 
     def change_date(self, new_date: date | datetime) -> TimeSpan:
         if isinstance(new_date, datetime):
             new_date = new_date.date
         return TimeSpan(
             start=datetime.combine(date=new_date, time=self.start.time()),
-            end=datetime.combine(date=new_date, time=self.end.time()),
+            duration=self.duration,
         )
 
     def intersection(self, other: TimeSpan) -> TimeSpan | None:
         if self.start <= other.start < self.end or other.start <= self.start < other.end:
-            return TimeSpan(start=max(self.start, other.start), end=min(self.end, other.end))
+            return TimeSpan.from_start_and_end(
+                start=max(self.start, other.start), end=min(self.end, other.end)
+            )
 
     def __and__(self, other: TimeSpan) -> TimeSpan | None:
         return self.intersection(other)
@@ -54,9 +58,9 @@ class TimeSpan:
 
         spans = []
         if self.start < overlap.start:
-            spans.append(TimeSpan(start=self.start, end=overlap.start))
+            spans.append(TimeSpan.from_start_and_end(start=self.start, end=overlap.start))
         if overlap.end < self.end:
-            spans.append(TimeSpan(start=overlap.end, end=self.end))
+            spans.append(TimeSpan.from_start_and_end(start=overlap.end, end=self.end))
 
         return tuple(spans)
 
@@ -64,6 +68,40 @@ class TimeSpan:
         return self.subtract(other)
 
 
-FULL_DAY = TimeSpan(start=DAY_START, end=DAILY_WORKLOAD)
-MORNING = TimeSpan(start=DAY_START, end=LUNCH_BREAK_START)
-AFTERNOON = TimeSpan(start=LUNCH_BREAK_END, end=DAILY_WORKLOAD - MORNING.duration)
+FULL_DAY = TimeSpan(start=DAY_START, duration=DAILY_WORKLOAD)
+MORNING = TimeSpan.from_start_and_end(start=DAY_START, end=LUNCH_BREAK_START)
+AFTERNOON = TimeSpan(start=LUNCH_BREAK_END, duration=DAILY_WORKLOAD - MORNING.duration)
+
+
+def unstructure_datetime(dt: datetime) -> str:
+    if dt.date() == datetime.min.date():
+        dt = dt.time()
+    return dt.isoformat()
+
+
+def structure_datetime(dt: str | datetime, _: Type[datetime]) -> datetime:
+    # yaml structures full datetime entries automatically
+    if isinstance(dt, datetime):
+        return dt
+
+    try:
+        dt = datetime.fromisoformat(dt)
+    except ValueError:
+        dt = datetime.combine(datetime.min.date(), time.fromisoformat(dt))
+    return dt
+
+
+def unstructure_timedelta(td: timedelta) -> str:
+    return f"{td.days}T{str(timedelta(seconds=td.seconds)):>08}"
+
+
+def structure_timedelta(td_str: str, _: Type[timedelta]) -> timedelta:
+    d_str, t_str = td_str.split("T")
+    t = time.fromisoformat(t_str)
+    return timedelta(days=int(d_str), hours=t.hour, minutes=t.minute, seconds=t.second)
+
+
+converter.register_unstructure_hook(datetime, unstructure_datetime)
+converter.register_unstructure_hook(timedelta, unstructure_timedelta)
+converter.register_structure_hook(datetime, structure_datetime)
+converter.register_structure_hook(timedelta, structure_timedelta)

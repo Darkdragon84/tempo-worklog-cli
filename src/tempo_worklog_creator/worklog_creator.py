@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import replace
-from datetime import datetime, date, time, timedelta
+from datetime import date, timedelta
+from pathlib import Path
 from typing import Iterable
 
 from jira import JIRA, Issue
@@ -12,17 +13,12 @@ from tempoapiclient.client_v4 import Tempo
 from tempo_worklog_creator.constants import (
     ACCOUNT_ID,
     HOLIDAYS_ISSUE,
-    COMPANY_MEETINGS,
-    COMPILER_STANDUP,
-    DEV_MEETINGS,
-    JOINT_SEMINAR,
     TEMPO_WORKLOG_ID,
     ISSUE_ID,
 )
+from tempo_worklog_creator.io_util import load_yaml, converter
 from tempo_worklog_creator.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
-from tempo_worklog_creator.work_log import WorkLog
-
-logging.basicConfig(level=logging.INFO)
+from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
 
 
 class WorkLogCreator:
@@ -101,7 +97,7 @@ class WorkLogCreator:
         """
         # this gets all logs on all DAYS that have an overlap with `time_span`
         worklogs = [
-            WorkLog.from_dict(log)
+            WorkLog.from_tempo_dict(log, self.jira)
             for log in self._tempo.get_worklogs(time_span.start, time_span.end)
         ]
         # filter out logs that actually overlap with time_spane
@@ -123,10 +119,10 @@ class WorkLogCreator:
 
         self._adapt_existing_logs(work_log)
         new_log = None
-        data = work_log.as_dict()
+        data = work_log.as_tempo_dict(self.jira)
         data.pop(TEMPO_WORKLOG_ID, None)  # payload can't contain existing worklog id
         try:
-            new_log = WorkLog.from_dict(self._tempo.post("worklogs", data=data))
+            new_log = WorkLog.from_tempo_dict(self._tempo.post("worklogs", data=data), self.jira)
             self.logger.info(f"created {new_log}")
         except (Exception, SystemExit) as e:
             self.logger.error(e)
@@ -145,13 +141,15 @@ class WorkLogCreator:
         if work_log.worklog_id is None:
             raise ValueError(f"{work_log} has no work log id.")
 
-        data = work_log.as_dict()
+        data = work_log.as_tempo_dict(self.jira)
         worklog_id = data.pop(TEMPO_WORKLOG_ID)  # payload can't contain existing worklog id
         data.pop(ISSUE_ID, None)  # payload can't contain issue id (must remain fixed)
 
         updated_log = None
         try:
-            updated_log = WorkLog.from_dict(self._tempo.put(f"worklogs/{worklog_id}", data=data))
+            updated_log = WorkLog.from_tempo_dict(
+                self._tempo.put(f"worklogs/{worklog_id}", data=data), self.jira
+            )
             self.logger.info(f"updated {updated_log}")
         except (Exception, SystemExit) as e:
             self.logger.error(e)
@@ -166,7 +164,7 @@ class WorkLogCreator:
         :return:
         """
         try:
-            log = WorkLog.from_dict(self._tempo.get(f"worklogs/{work_log_id}"))
+            log = WorkLog.from_tempo_dict(self._tempo.get(f"worklogs/{work_log_id}"), self.jira)
             self._tempo.delete(f"worklogs/{work_log_id}")
             self.logger.info(f"deleted {log}")
         except (Exception, SystemExit) as e:
@@ -183,12 +181,12 @@ class WorkLogCreator:
             self.delete_log(log.worklog_id)
 
     def _batch_create_logs(
-        self,
-        start_date: date,
-        end_date: date,
-        issue: str,
-        time_spans: TimeSpan | Iterable[TimeSpan],
-        descriptions: str | Iterable[str],
+            self,
+            start_date: date,
+            end_date: date,
+            issue: str,
+            time_spans: TimeSpan | Iterable[TimeSpan],
+            descriptions: str | Iterable[str],
     ) -> list[WorkLog]:
         """
         add multiple entries `start_date` to `end_date`. If `time_spans` and `descriptions` are
@@ -199,11 +197,11 @@ class WorkLogCreator:
         :param start_date: day of first entry
         :param end_date: day of last entry
         :param issue: name of the issue
-        :param time_spans: time span for each entry. if single element, all entries will have the
+        :param time_spans: time span for each entry. if single element, all entries will have
                            the same time span
-        :param descriptions: description for each entry. if single element, all entries will have the
+        :param descriptions: description for each entry. if single element, all entries will have
                              the same description
-        :return: list of response jsons
+        :return: list of created WorkLogs
         """
         duration = end_date - start_date
         work_logs = []
@@ -224,8 +222,7 @@ class WorkLogCreator:
             for time_span in time_spans:
                 work_log = self.create_log(
                     WorkLog(
-                        account_id=self.user_id,
-                        issue_id=self.jira_issue(issue).id,
+                        issue=issue,
                         time_span=time_span.change_date(day),
                         description=description,
                     )
@@ -245,7 +242,7 @@ class WorkLogCreator:
         )
 
     def create_workdays(
-        self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
+            self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
     ) -> list[WorkLog]:
         return self._batch_create_logs(
             start_date=start_date,
@@ -255,67 +252,23 @@ class WorkLogCreator:
             descriptions=descriptions,
         )
 
-    def create_workweek_default_meetings(self, start_date: date) -> list[WorkLog]:
-        if date.weekday(start_date) != 0:
-            raise ValueError(f"{start_date} is not a Monday")
+    def create_logs_from_yaml(self, filepath: Path | str):
+        filepath = Path(filepath)
+        if not filepath.is_file():
+            raise FileNotFoundError(f"{filepath} not found")
 
-        monday = start_date
-        wednesday = monday + timedelta(days=2)
-        thursday = wednesday + timedelta(days=1)
-        logs = [
-            # MONDAY
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=self.jira_issue(COMPANY_MEETINGS).id,
-                    time_span=TimeSpan(
-                        start=datetime.combine(monday, time(hour=9, minute=30)),
-                        end=timedelta(minutes=30),
-                    ),
-                    description="weekly team meeting",
-                )
-            ),
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=self.jira_issue(COMPILER_STANDUP).id,
-                    time_span=TimeSpan(
-                        start=datetime.combine(monday, time(hour=10)), end=timedelta(minutes=90)
-                    ),
-                    description="weekly compiler standup",
-                )
-            ),
-            # WEDNESDAY
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=self.jira_issue(DEV_MEETINGS).id,
-                    time_span=TimeSpan(
-                        start=datetime.combine(wednesday, time(hour=9)), end=timedelta(minutes=90)
-                    ),
-                    description="weekly matrix meetings",
-                )
-            ),
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=self.jira_issue(DEV_MEETINGS).id,
-                    time_span=TimeSpan(
-                        start=datetime.combine(wednesday, time(hour=11)), end=timedelta(minutes=60)
-                    ),
-                    description="weekly matrix meetings",
-                )
-            ),
-            # THURSDAY
-            self.create_log(
-                WorkLog(
-                    account_id=self.user_id,
-                    issue_id=self.jira_issue(JOINT_SEMINAR).id,
-                    time_span=TimeSpan(
-                        start=datetime.combine(thursday, time(hour=14)), end=timedelta(minutes=60)
-                    ),
-                    description="weekly joint seminar",
-                )
-            ),
-        ]
-        return logs
+        data = load_yaml(filepath)
+        worklogs = []
+        try:
+            sequence = WorkLogSequence.from_dict(data)
+            worklogs = sequence.worklogs
+        except Exception as e:
+            pass
+
+        try:
+            worklogs = converter.structure(data, list[WorkLog])
+        except Exception as e:
+            pass
+
+        for log in worklogs:
+            self.create_log(log)

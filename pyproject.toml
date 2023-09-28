@@ -15,9 +15,11 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
+    "cattrs",
     "jira",
+    "python-dotenv",
+    "ruamel.yaml",
     "tempo-api-python-client",
-    "python-dotenv"
 ]
 
 [project.optional-dependencies]

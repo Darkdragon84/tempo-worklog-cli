@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import replace
-from datetime import datetime, date, time, timedelta
+from datetime import date, timedelta
+from pathlib import Path
 from typing import Iterable
 
 from jira import JIRA, Issue
@@ -12,15 +13,12 @@ from tempoapiclient.client_v4 import Tempo
 from tempo_worklog_creator.constants import (
     ACCOUNT_ID,
     HOLIDAYS_ISSUE,
-    COMPANY_MEETINGS,
-    COMPILER_STANDUP,
-    DEV_MEETINGS,
-    JOINT_SEMINAR,
     TEMPO_WORKLOG_ID,
     ISSUE_ID,
 )
+from tempo_worklog_creator.io_util import load_yaml, converter
 from tempo_worklog_creator.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
-from tempo_worklog_creator.work_log import WorkLog
+from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
 
 logging.basicConfig(level=logging.INFO)
 
@@ -185,12 +183,12 @@ class WorkLogCreator:
             self.delete_log(log.worklog_id)
 
     def _batch_create_logs(
-        self,
-        start_date: date,
-        end_date: date,
-        issue: str,
-        time_spans: TimeSpan | Iterable[TimeSpan],
-        descriptions: str | Iterable[str],
+            self,
+            start_date: date,
+            end_date: date,
+            issue: str,
+            time_spans: TimeSpan | Iterable[TimeSpan],
+            descriptions: str | Iterable[str],
     ) -> list[WorkLog]:
         """
         add multiple entries `start_date` to `end_date`. If `time_spans` and `descriptions` are
@@ -247,7 +245,7 @@ class WorkLogCreator:
         )
 
     def create_workdays(
-        self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
+            self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
     ) -> list[WorkLog]:
         return self._batch_create_logs(
             start_date=start_date,
@@ -257,57 +255,23 @@ class WorkLogCreator:
             descriptions=descriptions,
         )
 
-    def create_workweek_default_meetings(self, start_date: date) -> list[WorkLog]:
-        if date.weekday(start_date) != 0:
-            raise ValueError(f"{start_date} is not a Monday")
+    def create_logs_from_yaml(self, filepath: Path | str):
+        filepath = Path(filepath)
+        if not filepath.is_file():
+            raise FileNotFoundError(f"{filepath} not found")
 
-        monday = start_date
-        wednesday = monday + timedelta(days=2)
-        thursday = wednesday + timedelta(days=1)
-        logs = [
-            # MONDAY
-            WorkLog(
-                issue=COMPANY_MEETINGS,
-                time_span=TimeSpan(
-                    start=datetime.combine(monday, time(hour=9, minute=30)),
-                    duration=timedelta(minutes=30),
-                ),
-                description="weekly team meeting",
-            ),
-            WorkLog(
-                issue=COMPILER_STANDUP,
-                time_span=TimeSpan(
-                    start=datetime.combine(monday, time(hour=10)),
-                    duration=timedelta(minutes=90),
-                ),
-                description="weekly compiler standup",
-            ),
-            # WEDNESDAY
-            WorkLog(
-                issue=DEV_MEETINGS,
-                time_span=TimeSpan(
-                    start=datetime.combine(wednesday, time(hour=9)),
-                    duration=timedelta(minutes=90),
-                ),
-                description="weekly matrix meetings",
-            ),
-            WorkLog(
-                issue=DEV_MEETINGS,
-                time_span=TimeSpan(
-                    start=datetime.combine(wednesday, time(hour=11)),
-                    duration=timedelta(minutes=60),
-                ),
-                description="weekly matrix meetings",
-            ),
-            # THURSDAY
-            WorkLog(
-                issue=JOINT_SEMINAR,
-                time_span=TimeSpan(
-                    start=datetime.combine(thursday, time(hour=14)),
-                    duration=timedelta(minutes=60),
-                ),
-                description="weekly joint seminar",
-            ),
-        ]
-        created_logs = [self.create_log(log) for log in logs]
-        return created_logs
+        data = load_yaml(filepath)
+        worklogs = []
+        try:
+            sequence = WorkLogSequence.from_dict(data)
+            worklogs = sequence.worklogs
+        except Exception as e:
+            pass
+
+        try:
+            worklogs = converter.structure(data, list[WorkLog])
+        except Exception as e:
+            pass
+
+        for log in worklogs:
+            self.create_log(log)

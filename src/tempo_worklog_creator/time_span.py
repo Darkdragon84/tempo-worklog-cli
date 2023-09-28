@@ -80,11 +80,15 @@ def unstructure_datetime(dt: datetime) -> str:
     return dt.isoformat()
 
 
-def structure_datetime(dt_str: str, _: Type[datetime]) -> datetime:
+def structure_datetime(dt: str | datetime, _: Type[datetime]) -> datetime:
+    # yaml structures full datetime entries automatically
+    if isinstance(dt, datetime):
+        return dt
+
     try:
-        dt = datetime.fromisoformat(dt_str)
+        dt = datetime.fromisoformat(dt)
     except ValueError:
-        dt = datetime.combine(datetime.min.date(), time.fromisoformat(dt_str))
+        dt = datetime.combine(datetime.min.date(), time.fromisoformat(dt))
     return dt
 
 

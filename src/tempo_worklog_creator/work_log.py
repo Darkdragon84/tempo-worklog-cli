@@ -96,15 +96,3 @@ class WorkLogSequence(SaveLoad):
             for day, logs in self.day_to_logs.items()
             for log in logs
         ]
-
-
-def unstructure_date(d: date) -> str:
-    return d.isoformat()
-
-
-def structure_date(d_str: str, _: Type[date]) -> date:
-    return date.fromisoformat(d_str)
-
-
-converter.register_unstructure_hook(date, unstructure_date)
-converter.register_structure_hook(date, structure_date)

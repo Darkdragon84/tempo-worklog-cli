@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -127,11 +128,16 @@ def test_subtract(span1: TimeSpan, span2: TimeSpan, difference: TimeSpan):
         TimeSpan(start=datetime(1, 1, 1), duration=timedelta(seconds=1)),
         TimeSpan(
             start=datetime(1, 2, 3, 4, 5), duration=timedelta(days=2, hours=1, microseconds=14)
-        ),  # ms will be truncated
+        ),  # microseconds will be truncated
         TimeSpan(start=datetime(1984, 11, 16, 19, 45), duration=timedelta(minutes=42)),
     ],
 )
-def test_serialization(time_span: TimeSpan):
+def test_serialization(time_span: TimeSpan, tmp_path: Path):
+    file_path = tmp_path / "time_span.yaml"
     dct = time_span.to_dict()
     time_span2 = TimeSpan.from_dict(dct)
     assert time_span2 == time_span
+
+    time_span.to_yaml(file_path)
+    time_span3 = TimeSpan.from_yaml(file_path)
+    assert time_span3 == time_span

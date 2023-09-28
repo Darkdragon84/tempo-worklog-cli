@@ -17,7 +17,6 @@ from tempo_worklog_creator.io_util import SaveLoad, converter
 
 @dataclass
 class TimeSpan(SaveLoad):
-    # TODO enable Union[datetime, time]
     start: datetime
     duration: timedelta
 

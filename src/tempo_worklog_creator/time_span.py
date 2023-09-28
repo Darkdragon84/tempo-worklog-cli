@@ -34,9 +34,7 @@ class TimeSpan(SaveLoad):
     def end(self) -> datetime:
         return self.start + self.duration
 
-    def change_date(self, new_date: date | datetime) -> TimeSpan:
-        if isinstance(new_date, datetime):
-            new_date = new_date.date
+    def change_date(self, new_date: date) -> TimeSpan:
         return TimeSpan(
             start=datetime.combine(date=new_date, time=self.start.time()),
             duration=self.duration,

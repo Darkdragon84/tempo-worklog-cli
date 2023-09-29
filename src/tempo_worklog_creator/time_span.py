@@ -11,7 +11,7 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
-from tempo_worklog_creator.io_util import SaveLoad
+from tempo_worklog_creator.util.io_util import SaveLoad
 
 
 @dataclass

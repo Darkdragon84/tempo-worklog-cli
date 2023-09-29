@@ -18,7 +18,7 @@ from tempo_worklog_creator.constants import (
     TEMPO_WORKLOG_ID,
     ISSUE_ID,
 )
-from tempo_worklog_creator.io_util import load_yaml, converter
+from tempo_worklog_creator.util.io_util import load_yaml, converter
 from tempo_worklog_creator.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
 from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
 

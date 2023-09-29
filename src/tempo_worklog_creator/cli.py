@@ -6,7 +6,7 @@ import click
 from click import Context
 from dotenv import load_dotenv
 
-from tempo_worklog_creator.io_util import converter
+from tempo_worklog_creator.util.io_util import converter
 from tempo_worklog_creator.time_span import TimeSpan
 from tempo_worklog_creator.worklog_creator import WorkLogCreator
 

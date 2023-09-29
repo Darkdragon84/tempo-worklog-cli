@@ -1,3 +1,4 @@
+from datetime import date
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -141,3 +142,23 @@ def test_serialization(time_span: TimeSpan, tmp_path: Path):
     time_span.to_yaml(file_path)
     time_span3 = TimeSpan.from_yaml(file_path)
     assert time_span3 == time_span
+
+
+@pytest.mark.parametrize(
+    "time_span, new_date, expected",
+    [
+        (
+            TimeSpan(start=datetime(1, 1, 1), duration=timedelta(days=1)),
+            date(1, 2, 3),
+            TimeSpan(start=datetime(1, 2, 3), duration=timedelta(days=1)),
+        ),
+        (
+            TimeSpan(start=datetime(1999, 10, 12, 13, 12), duration=timedelta(hours=1)),
+            date(2023, 1, 31),
+            TimeSpan(start=datetime(2023, 1, 31, 13, 12), duration=timedelta(hours=1)),
+        ),
+    ],
+)
+def test_change_date(time_span: TimeSpan, new_date: date, expected: TimeSpan):
+    actual = time_span.change_date(new_date)
+    assert actual == expected

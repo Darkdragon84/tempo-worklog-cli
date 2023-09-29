@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime, date, time, timedelta
-from typing import Any, Type
+from typing import Any
 
 from jira import JIRA
 
@@ -20,7 +20,6 @@ from tempo_worklog_creator.constants import (
     TEMPO_WORKLOG_ID,
 )
 from tempo_worklog_creator.io_util import SaveLoad
-from tempo_worklog_creator.io_util import converter
 from tempo_worklog_creator.time_span import TimeSpan
 
 
@@ -96,15 +95,3 @@ class WorkLogSequence(SaveLoad):
             for day, logs in self.day_to_logs.items()
             for log in logs
         ]
-
-
-def unstructure_date(d: date) -> str:
-    return d.isoformat()
-
-
-def structure_date(d_str: str, _: Type[date]) -> date:
-    return date.fromisoformat(d_str)
-
-
-converter.register_unstructure_hook(date, unstructure_date)
-converter.register_structure_hook(date, structure_date)

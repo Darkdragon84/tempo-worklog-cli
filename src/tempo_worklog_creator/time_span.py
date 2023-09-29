@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, date, time
-from typing import Type
+from datetime import datetime, timedelta, date
 
 from typing_extensions import Self
 
@@ -12,7 +11,7 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
-from tempo_worklog_creator.io_util import SaveLoad, converter
+from tempo_worklog_creator.io_util import SaveLoad
 
 
 @dataclass
@@ -34,9 +33,7 @@ class TimeSpan(SaveLoad):
     def end(self) -> datetime:
         return self.start + self.duration
 
-    def change_date(self, new_date: date | datetime) -> TimeSpan:
-        if isinstance(new_date, datetime):
-            new_date = new_date.date
+    def change_date(self, new_date: date) -> TimeSpan:
         return TimeSpan(
             start=datetime.combine(date=new_date, time=self.start.time()),
             duration=self.duration,
@@ -71,37 +68,3 @@ class TimeSpan(SaveLoad):
 FULL_DAY = TimeSpan(start=DAY_START, duration=DAILY_WORKLOAD)
 MORNING = TimeSpan.from_start_and_end(start=DAY_START, end=LUNCH_BREAK_START)
 AFTERNOON = TimeSpan(start=LUNCH_BREAK_END, duration=DAILY_WORKLOAD - MORNING.duration)
-
-
-def unstructure_datetime(dt: datetime) -> str:
-    if dt.date() == datetime.min.date():
-        dt = dt.time()
-    return dt.isoformat()
-
-
-def structure_datetime(dt: str | datetime, _: Type[datetime]) -> datetime:
-    # yaml structures full datetime entries automatically
-    if isinstance(dt, datetime):
-        return dt
-
-    try:
-        dt = datetime.fromisoformat(dt)
-    except ValueError:
-        dt = datetime.combine(datetime.min.date(), time.fromisoformat(dt))
-    return dt
-
-
-def unstructure_timedelta(td: timedelta) -> str:
-    return f"{td.days}T{str(timedelta(seconds=td.seconds)):>08}"
-
-
-def structure_timedelta(td_str: str, _: Type[timedelta]) -> timedelta:
-    d_str, t_str = td_str.split("T")
-    t = time.fromisoformat(t_str)
-    return timedelta(days=int(d_str), hours=t.hour, minutes=t.minute, seconds=t.second)
-
-
-converter.register_unstructure_hook(datetime, unstructure_datetime)
-converter.register_unstructure_hook(timedelta, unstructure_timedelta)
-converter.register_structure_hook(datetime, structure_datetime)
-converter.register_structure_hook(timedelta, structure_timedelta)

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, date, time
-from typing import Type
+from datetime import datetime, timedelta, date
 
 from typing_extensions import Self
 
@@ -12,7 +11,7 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
-from tempo_worklog_creator.io_util import SaveLoad, converter
+from tempo_worklog_creator.io_util import SaveLoad
 
 
 @dataclass

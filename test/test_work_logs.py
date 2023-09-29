@@ -7,10 +7,13 @@ from tempo_worklog_creator.time_span import TimeSpan
 from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
 
 
-@pytest.mark.parametrize('worklog', [
-    WorkLog("PP-1", TimeSpan(datetime(1, 1, 1, 10, 30), timedelta(minutes=30)), "test"),
-    WorkLog("CORE-2", TimeSpan(datetime(1, 1, 3, 12), timedelta(hours=1)), "test2", 1784),
-])
+@pytest.mark.parametrize(
+    "worklog",
+    [
+        WorkLog("PP-1", TimeSpan(datetime(1, 1, 1, 10, 30), timedelta(minutes=30)), "test"),
+        WorkLog("CORE-2", TimeSpan(datetime(1, 1, 3, 12), timedelta(hours=1)), "test2", 1784),
+    ],
+)
 def test_worklog_serialization(worklog: WorkLog, tmp_path: Path):
     filepath = tmp_path / "work_log.yaml"
     dct = worklog.to_dict()
@@ -22,23 +25,41 @@ def test_worklog_serialization(worklog: WorkLog, tmp_path: Path):
     assert worklog2 == worklog
 
 
-@pytest.mark.parametrize('worklogs', [
-    ([
-        WorkLog("PP-1", TimeSpan(datetime(1, 1, 1, 10, 30), timedelta(minutes=30)), "test"),
-        WorkLog("CORE-2", TimeSpan(datetime(1, 1, 3, 12), timedelta(hours=1)), "test2", 1784),
-    ]),
-])
+@pytest.mark.parametrize(
+    "worklogs",
+    [
+        (
+            [
+                WorkLog("PP-1", TimeSpan(datetime(1, 1, 1, 10, 30), timedelta(minutes=30)), "test"),
+                WorkLog(
+                    "CORE-2", TimeSpan(datetime(1, 1, 3, 12), timedelta(hours=1)), "test2", 1784
+                ),
+            ]
+        ),
+    ],
+)
 def test_work_log_sequence(worklogs: list[WorkLog]):
     seq = WorkLogSequence.from_worklogs(worklogs)
     assert seq.worklogs == worklogs
 
 
-@pytest.mark.parametrize('sequence', [
-    (WorkLogSequence.from_worklogs([
-        WorkLog("PP-1", TimeSpan(datetime(1, 1, 1, 10, 30), timedelta(minutes=30)), "test"),
-        WorkLog("CORE-2", TimeSpan(datetime(1, 1, 3, 12), timedelta(hours=1)), "test2", 1784),
-    ])),
-])
+@pytest.mark.parametrize(
+    "sequence",
+    [
+        (
+            WorkLogSequence.from_worklogs(
+                [
+                    WorkLog(
+                        "PP-1", TimeSpan(datetime(1, 1, 1, 10, 30), timedelta(minutes=30)), "test"
+                    ),
+                    WorkLog(
+                        "CORE-2", TimeSpan(datetime(1, 1, 3, 12), timedelta(hours=1)), "test2", 1784
+                    ),
+                ]
+            )
+        ),
+    ],
+)
 def test_work_log_sequence_serialization(sequence: WorkLogSequence, tmp_path: Path):
     filepath = tmp_path / "sequence.yaml"
     dct = sequence.to_dict()

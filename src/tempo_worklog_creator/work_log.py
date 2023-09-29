@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime, date, time, timedelta
-from typing import Any, Type
+from typing import Any
 
 from jira import JIRA
 
@@ -20,7 +20,6 @@ from tempo_worklog_creator.constants import (
     TEMPO_WORKLOG_ID,
 )
 from tempo_worklog_creator.io_util import SaveLoad
-from tempo_worklog_creator.io_util import converter
 from tempo_worklog_creator.time_span import TimeSpan
 
 

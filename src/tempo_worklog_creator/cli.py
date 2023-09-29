@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from datetime import datetime, date
@@ -69,5 +70,29 @@ def holidays(ctx: Context, start: str, end: str):
     )
 
 
-if __name__ == "__main__":
-    cli(obj={})
+@create.command()
+@click.argument("start")
+@click.argument("end")
+@click.argument("issue")
+@click.argument("descriptions", nargs=-1)
+@click.pass_context
+def workdays(ctx: Context, start: str, end: str, issue: str, descriptions: str):
+    # if descriptions empty, turn into no-op
+    if not descriptions:
+        ctx.obj[LOG_CREATOR].logger.warning("descriptions empty, not creating any worklogs")
+        return
+
+    if len(descriptions) == 1:
+        descriptions = descriptions[0]
+
+    ctx.ensure_object(dict)
+    ctx.obj[LOG_CREATOR].create_workdays(
+        start_date=converter.structure(start, date),
+        end_date=converter.structure(end, date),
+        issue=issue,
+        descriptions=descriptions
+    )
+
+
+# if __name__ == "__main__":
+#     cli(obj={})

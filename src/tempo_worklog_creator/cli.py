@@ -6,7 +6,7 @@ import click
 from click import Context
 from dotenv import load_dotenv
 
-from tempo_worklog_creator.util.io_util import converter
+from tempo_worklog_creator.util.serialization import converter
 from tempo_worklog_creator.time_span import TimeSpan
 from tempo_worklog_creator.worklog_creator import WorkLogCreator
 
@@ -47,7 +47,7 @@ def delete(ctx: Context, start: str, end: str):
     """
     ctx.ensure_object(dict)
     time_span = TimeSpan.from_start_and_end(
-        start=converter.structure(start, datetime), end=converter.structure(end, datetime)
+        start=converter.structure(start, date), end=converter.structure(end, date)
     )
     ctx.obj[LOG_CREATOR].delete_logs(time_span=time_span)
 

@@ -23,7 +23,7 @@ dependencies = [
     "tempo-api-python-client",
 ]
 [project.scripts]
-tempo-cli = "tempo_worklog_creator:cli"
+tempo = "tempo_worklog_creator:cli"
 
 [project.optional-dependencies]
 dev = [

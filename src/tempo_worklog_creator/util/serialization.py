@@ -1,6 +1,7 @@
+import re
 from datetime import datetime, time, timedelta, date
 from typing import Type
-import re
+
 from cattrs import Converter
 
 converter = Converter(forbid_extra_keys=True)

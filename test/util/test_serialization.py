@@ -47,7 +47,10 @@ def test_structuring(string: str, cls: Type[T], expected: T):
         (date(year=2000, month=1, day=1), "2000-01-01"),
         (date(year=2023, month=9, day=11), "2023-09-11"),
         # datetime
-        (datetime(year=1999, month=12, day=31, hour=23, minute=59, second=59), "1999-12-31T23:59:59"),
+        (
+            datetime(year=1999, month=12, day=31, hour=23, minute=59, second=59),
+            "1999-12-31T23:59:59",
+        ),
         (datetime(year=1895, month=1, day=1), "1895-01-01T00:00:00"),
         (datetime(year=2000, month=1, day=1, hour=13, minute=45), "2000-01-01T13:45:00"),
         # timedelta

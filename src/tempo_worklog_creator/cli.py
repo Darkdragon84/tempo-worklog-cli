@@ -1,13 +1,13 @@
 import logging
 import os
-from datetime import datetime, date
+from datetime import date
 
 import click
 from click import Context
 from dotenv import load_dotenv
 
-from tempo_worklog_creator.util.serialization import converter
 from tempo_worklog_creator.time_span import TimeSpan
+from tempo_worklog_creator.util.serialization import converter
 from tempo_worklog_creator.worklog_creator import WorkLogCreator
 
 load_dotenv()
@@ -40,15 +40,50 @@ def cli(ctx: Context, loglevel: str):
 @click.argument("start")
 @click.argument("end")
 @click.pass_context
-def delete(ctx: Context, start: str, end: str):
+def get(ctx: Context, start: str, end: str):
     """
-    Delete worklog entries from START to END dates (inclusive).
-    
+    Get and display worklog entries from START to END dates (inclusive).
+
     Dates must be given in isoformat YYYY-MM-DD or follow the pattern
 
       today|week-start|week-end[+/-DAYS]
 
-    where week-start and week-end are the dates of the current week's MON and FRI respectively and the
+    where week-start and week-end are the dates of the current week's MON and FRI respectively
+    and the
+    group [+/-DAYS] with DAYS an integer is optional.
+
+    \b
+    Examples:
+             today: today
+           today-1: yesterday
+           today+2: the day after tomorrow
+      week-start-7: last week's MON
+        week-end-1: this week's THU
+        week-end+3: next week's MON
+    """
+    ctx.ensure_object(dict)
+    time_span = TimeSpan.from_start_and_end(
+        start=converter.structure(start, date), end=converter.structure(end, date)
+    )
+    logs = ctx.obj[LOG_CREATOR].get_worklogs(time_span=time_span)
+    for log in logs:
+        click.echo(log)
+
+
+@cli.command()
+@click.argument("start")
+@click.argument("end")
+@click.pass_context
+def delete(ctx: Context, start: str, end: str):
+    """
+    Delete worklog entries from START to END dates (inclusive).
+
+    Dates must be given in isoformat YYYY-MM-DD or follow the pattern
+
+      today|week-start|week-end[+/-DAYS]
+
+    where week-start and week-end are the dates of the current week's MON and FRI respectively
+    and the
     group [+/-DAYS] with DAYS an integer is optional.
 
     \b
@@ -99,12 +134,13 @@ def holidays(ctx: Context, start: str, end: str):
     """
     Create holiday entries from START to END dates (inclusive) for 7.7h each day.
     Weekend days are skipped.
-    
+
     Dates must be given in isoformat YYYY-MM-DD or follow the pattern
 
       today|week-start|week-end[+/-DAYS]
 
-    where week-start and week-end are the dates of the current week's MON and FRI respectively and the
+    where week-start and week-end are the dates of the current week's MON and FRI respectively
+    and the
     group [+/-DAYS] with DAYS an integer is optional.
 
     \b
@@ -144,7 +180,8 @@ def workdays(ctx: Context, start: str, end: str, issue: str, descriptions: str):
 
       today|week-start|week-end[+/-DAYS]
 
-    where week-start and week-end are the dates of the current week's MON and FRI respectively and the
+    where week-start and week-end are the dates of the current week's MON and FRI respectively
+    and the
     group [+/-DAYS] with DAYS an integer is optional.
 
     \b
@@ -169,5 +206,5 @@ def workdays(ctx: Context, start: str, end: str, issue: str, descriptions: str):
         start_date=converter.structure(start, date),
         end_date=converter.structure(end, date),
         issue=issue,
-        descriptions=descriptions
+        descriptions=descriptions,
     )

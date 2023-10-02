@@ -43,7 +43,22 @@ def cli(ctx: Context, loglevel: str):
 def delete(ctx: Context, start: str, end: str):
     """
     Delete worklog entries from START to END dates (inclusive).
-    Dates must be given in isoformat YYYY-MM-DD.
+    
+    Dates must be given in isoformat YYYY-MM-DD or follow the pattern
+
+      today|week-start|week-end[+/-DAYS]
+
+    where week-start and week-end are the dates of the current week's MON and FRI respectively and the
+    group [+/-DAYS] with DAYS an integer is optional.
+
+    \b
+    Examples:
+             today: today
+           today-1: yesterday
+           today+2: the day after tomorrow
+      week-start-7: last week's MON
+        week-end-1: this week's THU
+        week-end+3: next week's MON
     """
     ctx.ensure_object(dict)
     time_span = TimeSpan.from_start_and_end(
@@ -84,7 +99,22 @@ def holidays(ctx: Context, start: str, end: str):
     """
     Create holiday entries from START to END dates (inclusive) for 7.7h each day.
     Weekend days are skipped.
-    Dates must be given in isoformat YYYY-MM-DD.
+    
+    Dates must be given in isoformat YYYY-MM-DD or follow the pattern
+
+      today|week-start|week-end[+/-DAYS]
+
+    where week-start and week-end are the dates of the current week's MON and FRI respectively and the
+    group [+/-DAYS] with DAYS an integer is optional.
+
+    \b
+    Examples:
+             today: today
+           today-1: yesterday
+           today+2: the day after tomorrow
+      week-start-7: last week's MON
+        week-end-1: this week's THU
+        week-end+3: next week's MON
     """
     ctx.ensure_object(dict)
     ctx.obj[LOG_CREATOR].create_holidays(
@@ -110,7 +140,21 @@ def workdays(ctx: Context, start: str, end: str, issue: str, descriptions: str):
     strings for each entry. The number of entries in DESCRIPTIONS must match the number of
     worklog entries that are created (two per day).
 
-    Dates must be given in isoformat YYYY-MM-DD.
+    Dates must be given in isoformat YYYY-MM-DD or follow the pattern
+
+      today|week-start|week-end[+/-DAYS]
+
+    where week-start and week-end are the dates of the current week's MON and FRI respectively and the
+    group [+/-DAYS] with DAYS an integer is optional.
+
+    \b
+    Examples:
+             today: today
+           today-1: yesterday
+           today+2: the day after tomorrow
+      week-start-7: last week's MON
+        week-end-1: this week's THU
+        week-end+3: next week's MON
     """
     # if descriptions empty, turn into no-op
     if not descriptions:

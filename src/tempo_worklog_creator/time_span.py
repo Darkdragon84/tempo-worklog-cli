@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 
 from typing_extensions import Self
 
@@ -24,7 +24,11 @@ class TimeSpan(SaveLoad):
         self.duration = self.duration - timedelta(microseconds=self.duration.microseconds)
 
     @classmethod
-    def from_start_and_end(cls, start: datetime, end: datetime) -> Self:
+    def from_start_and_end(cls, start: datetime | date, end: datetime | date) -> Self:
+        if isinstance(start, date):
+            start = datetime.combine(start, time(0, 0))
+        if isinstance(end, date):
+            end = datetime.combine(end, time(23, 59))
         if end <= start:
             raise ValueError(f"end time {end} must be greater than start time {start}")
         return cls(start=start, duration=end - start)

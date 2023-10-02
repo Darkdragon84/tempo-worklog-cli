@@ -1,42 +1,15 @@
-from datetime import date, datetime, timedelta, time
-from pathlib import Path
-from typing import Any, Type
-
+from datetime import datetime, time, timedelta, date
+from typing import Type
+import re
 from cattrs import Converter
-from ruamel.yaml import YAML
-
-yaml = YAML(typ="safe")
-yaml.default_flow_style = False  # disable flow style for consistent YAML format
 
 converter = Converter(forbid_extra_keys=True)
 
+TODAY = "today"
+WEEK_START = "week-start"
+WEEK_END = "week-end"
 
-def load_yaml(filepath: Path | str) -> dict | list:
-    filepath = Path(filepath)
-    with filepath.open("r") as file:
-        return yaml.load(file)
-
-
-def save_yaml(obj, filepath: Path | str):
-    filepath = Path(filepath)
-    with filepath.open("w") as file:
-        yaml.dump(obj, file)
-
-
-class SaveLoad:
-    def to_dict(self) -> dict[str, Any]:
-        return converter.unstructure(self)
-
-    @classmethod
-    def from_dict(cls, dct: dict[str, Any]):
-        return converter.structure(dct, cls)
-
-    @classmethod
-    def from_yaml(cls, filepath: Path | str):
-        return cls.from_dict(load_yaml(filepath))
-
-    def to_yaml(self, filepath: Path | str):
-        save_yaml(self.to_dict(), filepath)
+DAY_REGEX = re.compile(rf"({TODAY}|{WEEK_START}|{WEEK_END})([+-]\d+)?")
 
 
 def unstructure_datetime(dt: datetime) -> str:
@@ -71,8 +44,32 @@ def unstructure_date(d: date) -> str:
     return d.isoformat()
 
 
-def structure_date(d_str: str, _: Type[date]) -> date:
-    return date.fromisoformat(d_str)
+def structure_date(date_str: str, _: Type[date]) -> date:
+    """
+    if there is a match, i.e. m = DAY_REGEX.match(date_str) is not None, then
+    m.group(0) is the entire match
+    m.group(1) is the first capturing group, i.e. one of ("today", "week-start", "week-end")
+    m.group(2) is the second capturing group (which is optional), i.e. ±X or None
+    :param date_str:
+    :param _:
+    :return:
+    """
+    m = DAY_REGEX.match(date_str)
+    if m is not None:
+        today = date.today()
+        if m.group(1) == TODAY:
+            day = today
+        elif m.group(1) == WEEK_START:
+            day = date.today() - timedelta(days=today.weekday())
+        elif m.group(1) == WEEK_END:
+            day = date.today() + timedelta(days=4 - today.weekday())
+        else:
+            raise ValueError(f"'{m.group(0)}' not recognized")
+
+        if m.group(2) is not None:
+            day += timedelta(days=int(m.group(2)))
+        return day
+    return date.fromisoformat(date_str)
 
 
 converter.register_unstructure_hook(date, unstructure_date)

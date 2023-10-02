@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 
 from typing_extensions import Self
 
@@ -11,7 +11,7 @@ from tempo_worklog_creator.constants import (
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
-from tempo_worklog_creator.io_util import SaveLoad
+from tempo_worklog_creator.util.io_util import SaveLoad
 
 
 @dataclass
@@ -24,7 +24,11 @@ class TimeSpan(SaveLoad):
         self.duration = self.duration - timedelta(microseconds=self.duration.microseconds)
 
     @classmethod
-    def from_start_and_end(cls, start: datetime, end: datetime) -> Self:
+    def from_start_and_end(cls, start: datetime | date, end: datetime | date) -> Self:
+        if type(start) == date:  # date is a subtype of datetime!
+            start = datetime.combine(start, time(0, 0))
+        if type(end) == date:  # date is a subtype of datetime!
+            end = datetime.combine(end, time(23, 59))
         if end <= start:
             raise ValueError(f"end time {end} must be greater than start time {start}")
         return cls(start=start, duration=end - start)

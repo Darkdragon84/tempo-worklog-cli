@@ -25,9 +25,9 @@ class TimeSpan(SaveLoad):
 
     @classmethod
     def from_start_and_end(cls, start: datetime | date, end: datetime | date) -> Self:
-        if isinstance(start, date):
+        if type(start) == date:  # date is a subtype of datetime!
             start = datetime.combine(start, time(0, 0))
-        if isinstance(end, date):
+        if type(end) == date:  # date is a subtype of datetime!
             end = datetime.combine(end, time(23, 59))
         if end <= start:
             raise ValueError(f"end time {end} must be greater than start time {start}")

@@ -19,8 +19,8 @@ from tempo_worklog_creator.constants import (
     ID,
     TEMPO_WORKLOG_ID,
 )
-from tempo_worklog_creator.util.io_util import SaveLoad
 from tempo_worklog_creator.time_span import TimeSpan
+from tempo_worklog_creator.util.io_util import SaveLoad
 
 
 @dataclass

@@ -12,7 +12,7 @@ from typing import Iterable, Callable, TypeVar, Any, Iterator
 from jira import JIRA, Issue
 from tempoapiclient.client_v4 import Tempo
 
-from tempo_worklog_creator.constants import (
+from tempo_worklog_cli.constants import (
     ACCOUNT_ID,
     HOLIDAYS_ISSUE,
     TEMPO_WORKLOG_ID,

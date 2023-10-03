@@ -1,5 +1,5 @@
 ## Credentials
-Place a `.env` file in your project's root folder, containing the following environment variables (no quotes!):
+Create a `.env` file at `~/.tempo/.env`, containing the following environment variables (no quotes!):
 ```
 URL=https://<your-domain>.atlassian.net
 USER_EMAIL=user@domain.com

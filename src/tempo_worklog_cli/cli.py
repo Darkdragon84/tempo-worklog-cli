@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import date
+from pathlib import Path
 
 import click
 from click import Context
@@ -10,7 +11,8 @@ from tempo_worklog_cli.time_span import TimeSpan
 from tempo_worklog_cli.util.serialization import converter
 from tempo_worklog_cli.worklog_creator import WorkLogCreator
 
-load_dotenv()
+DOTENV_PATH = Path("~/.tempo/.env").expanduser()
+load_dotenv(DOTENV_PATH)
 
 JIRA = os.environ["JIRA_TOKEN"]
 TEMPO = os.environ["TEMPO_TOKEN"]

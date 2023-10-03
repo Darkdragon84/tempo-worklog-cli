@@ -7,7 +7,7 @@ from typing import Any
 
 from jira import JIRA
 
-from tempo_worklog_creator.constants import (
+from tempo_worklog_cli.constants import (
     AUTHOR_ACCOUNT_ID,
     ISSUE_ID,
     START_DATE,
@@ -19,8 +19,8 @@ from tempo_worklog_creator.constants import (
     ID,
     TEMPO_WORKLOG_ID,
 )
-from tempo_worklog_creator.time_span import TimeSpan
-from tempo_worklog_creator.util.io_util import SaveLoad
+from tempo_worklog_cli.time_span import TimeSpan
+from tempo_worklog_cli.util.io_util import SaveLoad
 
 
 @dataclass

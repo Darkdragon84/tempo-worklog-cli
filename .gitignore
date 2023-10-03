@@ -15,7 +15,6 @@
 **/.pytest_cache
 
 # vscode configuration
-.env
 .vscode/
 
 # macos
@@ -23,3 +22,6 @@
 
 # artifacts
 *.pkl
+
+# secrets
+*.env

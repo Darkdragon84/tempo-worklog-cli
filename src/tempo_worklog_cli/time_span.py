@@ -5,13 +5,13 @@ from datetime import datetime, timedelta, date, time
 
 from typing_extensions import Self
 
-from tempo_worklog_creator.constants import (
+from tempo_worklog_cli.constants import (
     DAY_START,
     DAILY_WORKLOAD,
     LUNCH_BREAK_START,
     LUNCH_BREAK_END,
 )
-from tempo_worklog_creator.util.io_util import SaveLoad
+from tempo_worklog_cli.util.io_util import SaveLoad
 
 
 @dataclass

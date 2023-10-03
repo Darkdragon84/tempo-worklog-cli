@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tempo_worklog_creator.time_span import TimeSpan
+from tempo_worklog_cli.time_span import TimeSpan
 
 
 @pytest.mark.parametrize(

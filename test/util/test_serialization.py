@@ -3,7 +3,7 @@ from typing import Type, TypeVar
 
 import pytest
 
-from tempo_worklog_creator.util.serialization import converter
+from tempo_worklog_cli.util.serialization import converter
 
 T = TypeVar("T", date, datetime, timedelta)
 

@@ -3,7 +3,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from tempo_worklog_creator.util.serialization import converter
+from tempo_worklog_cli.util.serialization import converter
 
 yaml = YAML(typ="safe")
 yaml.default_flow_style = False  # disable flow style for consistent YAML format

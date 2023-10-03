@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from tempo_worklog_creator.time_span import TimeSpan
-from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
+from tempo_worklog_cli.time_span import TimeSpan
+from tempo_worklog_cli.work_log import WorkLog, WorkLogSequence
 
 
 @pytest.mark.parametrize(

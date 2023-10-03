@@ -18,10 +18,10 @@ from tempo_worklog_cli.constants import (
     TEMPO_WORKLOG_ID,
     ISSUE_ID,
 )
-from tempo_worklog_creator.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
-from tempo_worklog_creator.util.io_util import load_yaml
-from tempo_worklog_creator.util.serialization import converter
-from tempo_worklog_creator.work_log import WorkLog, WorkLogSequence
+from tempo_worklog_cli.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
+from tempo_worklog_cli.util.io_util import load_yaml
+from tempo_worklog_cli.util.serialization import converter
+from tempo_worklog_cli.work_log import WorkLog, WorkLogSequence
 
 T = TypeVar("T")
 

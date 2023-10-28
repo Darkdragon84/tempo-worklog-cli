@@ -67,7 +67,7 @@ def get(ctx: Context, start: str, end: str):
     time_span = TimeSpan.from_start_and_end(
         start=converter.structure(start, date), end=converter.structure(end, date)
     )
-    logs = ctx.obj[LOG_CREATOR].get_worklogs(time_span=time_span)
+    logs = ctx.obj[LOG_CREATOR].get_logs(time_span=time_span)
     for log in logs:
         click.echo(log)
 

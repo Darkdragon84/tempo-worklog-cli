@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime, date, time, timedelta
-from typing import Any
+from itertools import combinations
+from typing import Any, Iterable
 
 from jira import JIRA
 
@@ -23,7 +24,7 @@ from tempo_worklog_cli.time_span import TimeSpan
 from tempo_worklog_cli.util.io_util import SaveLoad
 
 
-@dataclass
+@dataclass(frozen=True)
 class WorkLog(SaveLoad):
     issue: str  # str-int (like e.g. PP-1)
     time_span: TimeSpan
@@ -95,3 +96,12 @@ class WorkLogSequence(SaveLoad):
             for day, logs in self.day_to_logs.items()
             for log in logs
         ]
+
+
+def overlapping(logs: Iterable[WorkLog]) -> list[tuple[WorkLog, WorkLog]]:
+    """
+    return pairs of overlapping WorkLogs from a given iterable of WorkLogs
+    :param logs:
+    :return:
+    """
+    return [(log1, log2) for log1, log2 in combinations(logs, 2) if log1.time_span & log2.time_span]

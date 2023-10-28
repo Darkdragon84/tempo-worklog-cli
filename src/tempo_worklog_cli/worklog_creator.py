@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import date, timedelta
+from itertools import chain, product
 from pathlib import Path
 from typing import Iterable, Callable, TypeVar, Any, Iterator
 
@@ -21,9 +22,13 @@ from tempo_worklog_cli.constants import (
 from tempo_worklog_cli.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
 from tempo_worklog_cli.util.io_util import load_yaml
 from tempo_worklog_cli.util.serialization import converter
-from tempo_worklog_cli.work_log import WorkLog, WorkLogSequence
+from tempo_worklog_cli.work_log import WorkLog, WorkLogSequence, overlapping
 
 T = TypeVar("T")
+
+
+class WorkLogCreatorError(ValueError):
+    pass
 
 
 class WorkLogCreator:
@@ -67,7 +72,7 @@ class WorkLogCreator:
         """
         return self._jira.issue(issue)
 
-    def _adapt_existing_logs(self, work_log: WorkLog):
+    def _adapt_existing_logs(self, work_log: WorkLog, existing_logs: Iterable[WorkLog]):
         """
         fetch all existing logs, that overlap with `work_log` and cut away the overlaps from the
         existing logs or delete them
@@ -75,7 +80,9 @@ class WorkLogCreator:
         :param work_log:
         :return:
         """
-        for log in self.get_worklogs(work_log.time_span):
+        to_delete = []
+        to_update = []
+        for log in existing_logs:
             adapted_spans = log.time_span - work_log.time_span
             # new_log covers log completely
             if not adapted_spans:
@@ -103,7 +110,18 @@ class WorkLogCreator:
             log = replace(log, time_span=adapted_span)
             self.update_log(log)
 
-    def get_worklogs(self, time_span: TimeSpan) -> list[WorkLog]:
+    def get_logs_on_date(self, date: datetime.date) -> list[WorkLog]:
+        """
+        get all worklogs on a specific date
+        :param date:
+        :return:
+        """
+        worklogs = [
+            WorkLog.from_tempo_dict(log, self.jira) for log in self._tempo.get_worklogs(date, date)
+        ]
+        return worklogs
+
+    def get_logs_in_timespan(self, time_span: TimeSpan) -> list[WorkLog]:
         """
         get all worklogs that overlap with `time_span`.
 
@@ -119,9 +137,19 @@ class WorkLogCreator:
         worklogs = [worklog for worklog in worklogs if worklog.time_span & time_span]
         return worklogs
 
+    def get_overlapping_logs(self, time_span: TimeSpan) -> list[tuple[WorkLog, WorkLog]]:
+        """
+        get overlapping pairs of WorkLogs within a passed TimeSpan
+
+        :param time_span:
+        :return:
+        """
+        logs = self.get_logs_in_timespan(time_span)
+        return overlapping(logs)
+
     def create_log(self, work_log: WorkLog, skip_weekend: bool = True) -> WorkLog | None:
         """
-        create new work log entry
+        create new work log entry, regardless of potential overlaps with existing logs
 
         :param work_log:
         :param skip_weekend: whether to create the log if its start or end date fall on a weekend
@@ -132,7 +160,7 @@ class WorkLogCreator:
             if skip_weekend:
                 return
 
-        self._adapt_existing_logs(work_log)
+        # self._adapt_existing_logs(work_log)
         new_log = None
         data = work_log.as_tempo_dict(self.jira)
         data.pop(TEMPO_WORKLOG_ID, None)  # payload can't contain existing worklog id
@@ -149,15 +177,64 @@ class WorkLogCreator:
             results = pool.map(fun, data)
         return results
 
-    def create_logs(self, worklogs: Iterable[WorkLog]):
+    def create_logs(self, worklogs: Iterable[WorkLog]) -> list[WorkLog]:
         """
         create a batch of worklogs asynchronously
         :param worklogs:
         :return:
         """
-        return [
-            log for log in self._batch_perform_action(self.create_log, worklogs) if log is not None
-        ]
+        worklogs = list(worklogs)
+
+        # check for overlapping work logs and raise if there are any
+        overlapping_logs = overlapping(worklogs)
+        if overlapping_logs:
+            raise WorkLogCreatorError(f"overlapping worklogs: {overlapping_logs}")
+
+        # fetch existing logs on the dates of the passed work logs
+        # and create mapping from existing logs to overlapping passed logs
+        date_to_logs = {}
+        for log in worklogs:
+            for date in log.time_span.dates:
+                date_to_logs.setdefault(date, []).append(log)
+
+        date_to_existing_logs: dict[datetime.date, list[WorkLog]] = dict(
+            zip(date_to_logs, self._batch_perform_action(self.get_logs_on_date, date_to_logs))
+        )
+
+        existing_log_to_new_logs = {}
+        for date, logs in date_to_logs.items():
+            existing_logs = date_to_existing_logs[date]
+            if not existing_logs:
+                continue
+
+            for log, existing_log in product(logs, existing_logs):
+                if log.time_span & existing_log.time_span:
+                    existing_log_to_new_logs.setdefault(existing_log, []).append(log)
+
+        # subtract time spans of new logs from overlapping existing logs and divide into
+        # existing logs to update or to delete, and potentially split existing logs
+        to_update = []
+        to_delete = []
+        for existing_log, new_logs in existing_log_to_new_logs.items():
+            adapted_spans = [existing_log.time_span]
+            for new_log in new_logs:
+                adapted_spans = list(
+                    chain.from_iterable([span - new_log.time_span for span in adapted_spans])
+                )
+
+            if not adapted_spans:
+                to_delete.append(existing_log)
+                continue
+
+            span_it = iter(adapted_spans)
+            span = next(span_it)
+            to_update.append(replace(existing_log, time_span=span))
+            for span in span_it:
+                worklogs.append(replace(existing_log, time_span=span))
+
+        self._batch_perform_action(self.update_log, to_update)
+        self._batch_perform_action(self.delete_log, [log.worklog_id for log in to_delete])
+        return list(self._batch_perform_action(self.create_log, worklogs))
 
     def update_log(self, work_log: WorkLog) -> WorkLog | None:
         """
@@ -207,13 +284,13 @@ class WorkLogCreator:
         :param time_span:
         :return:
         """
-        worklog_ids = [log.worklog_id for log in self.get_worklogs(time_span)]
+        worklog_ids = [log.worklog_id for log in self.get_logs_in_timespan(time_span)]
         self._batch_perform_action(self.delete_log, worklog_ids)
 
     def _create_log_collection(
         self,
-        start_date: date,
-        end_date: date,
+        start_date: datetime.date,
+        end_date: datetime.date,
         issue: str,
         time_spans: TimeSpan | Iterable[TimeSpan],
         descriptions: str | Iterable[str],
@@ -244,7 +321,7 @@ class WorkLogCreator:
 
         worklogs = []
         for i, description in zip(range(duration.days + 1), descriptions):
-            day = start_date + timedelta(days=i)
+            day = start_date + datetime.timedelta(days=i)
             # don't add entries for weekends
             if day.weekday() > 4:
                 continue
@@ -260,7 +337,7 @@ class WorkLogCreator:
 
         return self.create_logs(worklogs)
 
-    def create_holidays(self, start_date: date, end_date: date) -> list[WorkLog]:
+    def create_holidays(self, start_date: datetime.date, end_date: datetime.date) -> list[WorkLog]:
         """
         creates holiday entries for 7.7h for each day from `start_date` to `end_date` without
         lunch break
@@ -278,7 +355,11 @@ class WorkLogCreator:
         )
 
     def create_workdays(
-        self, start_date: date, end_date: date, issue: str, descriptions: str | Iterable[str]
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
+        issue: str,
+        descriptions: str | Iterable[str],
     ) -> list[WorkLog]:
         """
         creates full workdays for the same issue for every day from `start_date` to `end_date`,

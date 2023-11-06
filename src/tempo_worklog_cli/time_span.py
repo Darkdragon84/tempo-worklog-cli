@@ -14,14 +14,20 @@ from tempo_worklog_cli.constants import (
 from tempo_worklog_cli.util.io_util import SaveLoad
 
 
-@dataclass
+class TimeSpanError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
 class TimeSpan(SaveLoad):
     start: datetime
     duration: timedelta
 
     def __post_init__(self) -> None:
-        self.start = self.start.replace(microsecond=0)
-        self.duration = self.duration - timedelta(microseconds=self.duration.microseconds)
+        object.__setattr__(self, "start", self.start.replace(microsecond=0))
+        object.__setattr__(
+            self, "duration", self.duration - timedelta(microseconds=self.duration.microseconds)
+        )
 
     @classmethod
     def from_start_and_end(cls, start: datetime | date, end: datetime | date) -> Self:
@@ -37,6 +43,10 @@ class TimeSpan(SaveLoad):
     def end(self) -> datetime:
         return self.start + self.duration
 
+    @property
+    def dates(self) -> list[date]:
+        return [self.start.date() + timedelta(days=d) for d in range(self.duration.days + 1)]
+
     def change_date(self, new_date: date) -> TimeSpan:
         return TimeSpan(
             start=datetime.combine(date=new_date, time=self.start.time()),
@@ -50,9 +60,26 @@ class TimeSpan(SaveLoad):
             )
 
     def __and__(self, other: TimeSpan) -> TimeSpan | None:
+        """
+        return overlapping part between `self` and `other`
+        :param other:
+        :return:
+           - overlap if non-zero, None otherwise
+        """
         return self.intersection(other)
 
     def subtract(self, other: TimeSpan) -> tuple[()] | tuple[TimeSpan] | tuple[TimeSpan, TimeSpan]:
+        """
+        subtract other TimeSpan from self
+
+        Remove overlapping part between `self` and `other` from `self`.
+        :param other:
+        :return:
+            - empty tuple if `other` completely covers `self`
+            - 2 tuple (part_before_other, part_after_other) If `other` is completely contained in
+            `self`
+            - single element tuple otherwise
+        """
         overlap = self & other
         if not overlap:
             return (replace(self),)

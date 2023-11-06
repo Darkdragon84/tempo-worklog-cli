@@ -72,44 +72,6 @@ class WorkLogCreator:
         """
         return self._jira.issue(issue)
 
-    def _adapt_existing_logs(self, work_log: WorkLog, existing_logs: Iterable[WorkLog]):
-        """
-        fetch all existing logs, that overlap with `work_log` and cut away the overlaps from the
-        existing logs or delete them
-
-        :param work_log:
-        :return:
-        """
-        to_delete = []
-        to_update = []
-        for log in existing_logs:
-            adapted_spans = log.time_span - work_log.time_span
-            # new_log covers log completely
-            if not adapted_spans:
-                self.logger.warning("deleting %s", log)
-                self.delete_log(log.worklog_id)
-                continue
-
-            # new_log cuts log in the middle
-            if len(adapted_spans) == 2:
-                span1, span2 = adapted_spans
-
-                self.logger.info(f"splitting {log} into {span1} and {span2}")
-                log1 = replace(log, time_span=span1)
-                log2 = replace(log, time_span=span2)
-                self.update_log(log1)
-                self.create_log(log2)
-                continue
-
-            adapted_span = adapted_spans[0]
-            # no overlap (this shouldn't happen though)
-            if adapted_span == log.time_span:
-                continue
-
-            self.logger.info(f"adapting {log} to {adapted_span}")
-            log = replace(log, time_span=adapted_span)
-            self.update_log(log)
-
     def get_logs_on_date(self, date: datetime.date) -> list[WorkLog]:
         """
         get all worklogs on a specific date

@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import date
+from datetime import date, timedelta, datetime
 from pathlib import Path
 
 import click
@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from tempo_worklog_cli.time_span import TimeSpan
 from tempo_worklog_cli.util.serialization import converter
+from tempo_worklog_cli.work_log import WorkLog
 from tempo_worklog_cli.worklog_creator import WorkLogCreator
 
 DOTENV_PATH = Path("~/.tempo/.env").expanduser()
@@ -174,6 +175,8 @@ def workdays(ctx: Context, start: str, end: str, issue: str, descriptions: str):
     giving a total of 7.7h work hours per day.
     Weekend days are skipped.
 
+    ISSUE must be given in <project-code>-<issue-number> format (e.g. CORE-24)
+
     DESCRIPTIONS can be either a single string that is used for all entries, or a sequence of
     strings for each entry. The number of entries in DESCRIPTIONS must match the number of
     worklog entries that are created (two per day).
@@ -210,3 +213,53 @@ def workdays(ctx: Context, start: str, end: str, issue: str, descriptions: str):
         issue=issue,
         descriptions=descriptions,
     )
+
+
+@create.command()
+@click.argument("start")
+@click.argument("duration")
+@click.argument("issue")
+@click.argument("description")
+@click.pass_context
+def entry(ctx: Context, start: str, duration: str, issue: str, description: str):
+    """
+    Create a single worklog entry from START, DURATION, ISSUE and DESCRIPTION.
+
+    ISSUE must be given in <project-code>-<issue-number> format (e.g. CORE-24)
+
+    DURATION must be given in timedelta isoformat <days>T<hours>:<minutes>:<seconds> format
+    or follow the pattern
+
+        [<days>d][<hours>h][<minutes>m][<seconds>s]
+
+    where each group is optional, but at least one must be given.
+
+    START must be given in date isoformat YYYY-MM-DD or follow the pattern
+
+      today|week-start|week-end[+/-DAYS]
+
+    where week-start and week-end are the dates of the current week's MON and FRI respectively
+    and the
+    group [+/-DAYS] with DAYS an integer is optional.
+
+    \b
+    Examples:
+             today: today
+           today-1: yesterday
+           today+2: the day after tomorrow
+      week-start-7: last week's MON
+        week-end-1: this week's THU
+        week-end+3: next week's MON
+    """
+    ctx.ensure_object(dict)
+    worklogs = (
+        WorkLog(
+            issue=issue,
+            time_span=TimeSpan(
+                start=converter.structure(start, datetime),
+                duration=converter.structure(duration, timedelta),
+            ),
+            description=description,
+        ),
+    )
+    ctx.obj[LOG_CREATOR].create_logs(worklogs)

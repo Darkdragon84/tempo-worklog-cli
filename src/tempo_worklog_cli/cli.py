@@ -225,7 +225,7 @@ def entry(ctx: Context, start: str, duration: str, issue: str, description: str)
     """
     Create a single worklog entry from START, DURATION, ISSUE and DESCRIPTION.
 
-    ISSUE must be given in <project-code>-<issue-number> format (e.g. CORE-24)
+    START must be given in date isoformat <year>-<month>-<day>T<hour>:<minute>:<second>
 
     DURATION must be given in timedelta isoformat <days>T<hours>:<minutes>:<seconds> format
     or follow the pattern
@@ -234,22 +234,7 @@ def entry(ctx: Context, start: str, duration: str, issue: str, description: str)
 
     where each group is optional, but at least one must be given.
 
-    START must be given in date isoformat YYYY-MM-DD or follow the pattern
-
-      today|week-start|week-end[+/-DAYS]
-
-    where week-start and week-end are the dates of the current week's MON and FRI respectively
-    and the
-    group [+/-DAYS] with DAYS an integer is optional.
-
-    \b
-    Examples:
-             today: today
-           today-1: yesterday
-           today+2: the day after tomorrow
-      week-start-7: last week's MON
-        week-end-1: this week's THU
-        week-end+3: next week's MON
+    ISSUE must be given in <project-code>-<issue-number> format (e.g. CORE-24)
     """
     ctx.ensure_object(dict)
     worklogs = (

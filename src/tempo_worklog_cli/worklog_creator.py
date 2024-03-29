@@ -109,7 +109,7 @@ class WorkLogCreator:
         logs = self.get_logs_in_timespan(time_span)
         return overlapping(logs)
 
-    def create_log(self, work_log: WorkLog, skip_weekend: bool = True) -> WorkLog | None:
+    def _force_create_log(self, work_log: WorkLog, skip_weekend: bool = True) -> WorkLog | None:
         """
         create new work log entry, regardless of potential overlaps with existing logs
 
@@ -196,7 +196,7 @@ class WorkLogCreator:
 
         self._batch_perform_action(self.update_log, to_update)
         self._batch_perform_action(self.delete_log, [log.worklog_id for log in to_delete])
-        return list(self._batch_perform_action(self.create_log, worklogs))
+        return list(self._batch_perform_action(self._force_create_log, worklogs))
 
     def update_log(self, work_log: WorkLog) -> WorkLog | None:
         """

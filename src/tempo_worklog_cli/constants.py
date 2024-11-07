@@ -21,6 +21,6 @@ HOLIDAYS_ISSUE = "PP-7"
 JOINT_SEMINAR = "RES-123"
 
 DAILY_WORKLOAD = timedelta(seconds=27720)  # 7.7h in seconds
-DAY_START = datetime(year=1, month=1, day=1, hour=9)
-LUNCH_BREAK_START = datetime(year=1, month=1, day=1, hour=13)
-LUNCH_BREAK_END = datetime(year=1, month=1, day=1, hour=14)
+DAY_START = datetime(year=1, month=1, day=1, hour=9, minute=30)
+LUNCH_BREAK_START = datetime(year=1, month=1, day=1, hour=12, minute=30)
+LUNCH_BREAK_END = datetime(year=1, month=1, day=1, hour=13, minute=30)

@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import date, timedelta, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import click
@@ -33,7 +33,7 @@ def cli(ctx: Context, loglevel: str):
     Tempo timesheets command line interface for (batch) creating and deleting work log entries
     from arguments or yaml files.
     """
-    level = logging.getLevelName(loglevel.upper())
+    level = logging.getLevelNamesMapping().get(loglevel.upper(), 30)
     logging.basicConfig(level=level, format="%(asctime)s|%(name)s|%(levelname)s: %(message)s")
     ctx.ensure_object(dict)
     ctx.obj[LOG_CREATOR] = WorkLogCreator(url=URL, user=USER, jira_token=JIRA, tempo_token=TEMPO)
@@ -107,7 +107,7 @@ def delete(ctx: Context, start: str, end: str):
 
 @cli.group()
 @click.pass_context
-def create(ctx: Context):
+def create(_: Context):
     """
     Create worklog entries.
     """

@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
-from datetime import datetime, date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from itertools import combinations
-from typing import Any, Iterable
+from typing import Any
 
 from jira import JIRA
 
 from tempo_worklog_cli.constants import (
+    ACCOUNT_ID,
     AUTHOR_ACCOUNT_ID,
+    DESCRIPTION,
+    ID,
+    ISSUE,
     ISSUE_ID,
     START_DATE,
     START_TIME,
-    TIME_SPENT_SECONDS,
-    DESCRIPTION,
-    ACCOUNT_ID,
-    ISSUE,
-    ID,
     TEMPO_WORKLOG_ID,
+    TIME_SPENT_SECONDS,
 )
 from tempo_worklog_cli.time_span import TimeSpan
 from tempo_worklog_cli.util.io_util import SaveLoad

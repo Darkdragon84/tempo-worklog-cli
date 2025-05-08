@@ -4,11 +4,12 @@ import datetime
 import logging
 import os
 import warnings
+from collections.abc import Collection, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from itertools import chain, product
 from pathlib import Path
-from typing import Iterable, Callable, TypeVar, Any, Iterator
+from typing import Any, Callable, TypeVar
 
 from jira import JIRA, Issue
 from tempoapiclient.client_v4 import Tempo
@@ -16,10 +17,10 @@ from tempoapiclient.client_v4 import Tempo
 from tempo_worklog_cli.constants import (
     ACCOUNT_ID,
     HOLIDAYS_ISSUE,
-    TEMPO_WORKLOG_ID,
     ISSUE_ID,
+    TEMPO_WORKLOG_ID,
 )
-from tempo_worklog_cli.time_span import TimeSpan, FULL_DAY, MORNING, AFTERNOON
+from tempo_worklog_cli.time_span import AFTERNOON, FULL_DAY, MORNING, TimeSpan
 from tempo_worklog_cli.util.io_util import load_yaml
 from tempo_worklog_cli.util.serialization import converter
 from tempo_worklog_cli.work_log import WorkLog, WorkLogSequence, overlapping
@@ -38,17 +39,17 @@ class WorkLogCreator:
         user: str,
         jira_token: str,
         tempo_token: str,
-        num_threads: int = os.cpu_count(),
+        num_threads: int = min(os.cpu_count() or 1, 4),
     ) -> None:
-        self._url = url
-        self._user = user
+        self._url: str = url
+        self._user: str = user
 
-        self._jira = JIRA(self._url, basic_auth=(self._user, jira_token))
-        self._user_id = self._jira.myself()[ACCOUNT_ID]
+        self._jira: JIRA = JIRA(self._url, basic_auth=(self._user, jira_token))
+        self._user_id: str = self._jira.myself()[ACCOUNT_ID]
 
-        self._tempo = Tempo(auth_token=tempo_token)
-        self._num_threads = num_threads
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self._tempo: Tempo = Tempo(auth_token=tempo_token)
+        self._num_threads: int = num_threads
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
 
     @property
     def user(self) -> str:
@@ -70,7 +71,7 @@ class WorkLogCreator:
         """
         get unique JIRA integer id from issue identifier (
         """
-        return self._jira.issue(issue)
+        return self._jira.issue(str(issue))
 
     def get_logs_on_date(self, date: datetime.date) -> list[WorkLog]:
         """
@@ -118,7 +119,7 @@ class WorkLogCreator:
         :return:
         """
         if work_log.time_span.start.weekday() > 4 or work_log.time_span.end.weekday() > 4:
-            self.logger.warning(f"%s is on a weekend", work_log.time_span)
+            self.logger.warning("%s is on a weekend", work_log.time_span)
             if skip_weekend:
                 return
 
@@ -246,7 +247,11 @@ class WorkLogCreator:
         :param time_span:
         :return:
         """
-        worklog_ids = [log.worklog_id for log in self.get_logs_in_timespan(time_span)]
+        worklog_ids = [
+            log.worklog_id
+            for log in self.get_logs_in_timespan(time_span)
+            if log.worklog_id is not None
+        ]
         self._batch_perform_action(self.delete_log, worklog_ids)
 
     def _create_log_collection(
@@ -254,8 +259,8 @@ class WorkLogCreator:
         start_date: datetime.date,
         end_date: datetime.date,
         issue: str,
-        time_spans: TimeSpan | Iterable[TimeSpan],
-        descriptions: str | Iterable[str],
+        time_spans: TimeSpan | Collection[TimeSpan],
+        descriptions: str | Collection[str],
     ) -> list[WorkLog]:
         """
         add multiple entries `start_date` to `end_date`. If `time_spans` and `descriptions` are
@@ -278,7 +283,7 @@ class WorkLogCreator:
         if isinstance(time_spans, TimeSpan):
             time_spans = [time_spans]
 
-        if duration.days + 1 != len(descriptions):
+        if len(descriptions) != duration.days + 1:
             warnings.warn(f"got {len(descriptions)} descriptions for {duration.days + 1} days.")
 
         worklogs = []
@@ -321,7 +326,7 @@ class WorkLogCreator:
         start_date: datetime.date,
         end_date: datetime.date,
         issue: str,
-        descriptions: str | Iterable[str],
+        descriptions: str | Collection[str],
     ) -> list[WorkLog]:
         """
         creates full workdays for the same issue for every day from `start_date` to `end_date`,

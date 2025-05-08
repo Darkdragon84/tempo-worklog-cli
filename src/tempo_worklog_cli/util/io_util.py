@@ -9,7 +9,7 @@ yaml = YAML(typ="safe")
 yaml.default_flow_style = False  # disable flow style for consistent YAML format
 
 
-def load_yaml(filepath: Path | str) -> dict | list:
+def load_yaml(filepath: Path | str) -> dict[str, Any]:
     filepath = Path(filepath)
     with filepath.open("r") as file:
         return yaml.load(file)

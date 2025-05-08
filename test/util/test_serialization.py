@@ -1,5 +1,5 @@
-from datetime import date, timedelta, datetime
-from typing import Type, TypeVar
+from datetime import date, datetime, timedelta
+from typing import TypeVar
 
 import pytest
 
@@ -36,7 +36,7 @@ T = TypeVar("T", date, datetime, timedelta)
         ("7T12:30:00", timedelta, timedelta(weeks=1, hours=12, minutes=30)),
     ],
 )
-def test_structuring(string: str, cls: Type[T], expected: T):
+def test_structuring(string: str, cls: type[T], expected: T):
     assert converter.structure(string, cls) == expected
 
 

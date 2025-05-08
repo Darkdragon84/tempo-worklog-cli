@@ -1,21 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, date, time
+from datetime import date, datetime, time, timedelta
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeIs
 
 from tempo_worklog_cli.constants import (
-    DAY_START,
     DAILY_WORKLOAD,
-    LUNCH_BREAK_START,
+    DAY_START,
     LUNCH_BREAK_END,
+    LUNCH_BREAK_START,
 )
 from tempo_worklog_cli.util.io_util import SaveLoad
 
 
 class TimeSpanError(ValueError):
     pass
+
+
+def _is_date(obj: object) -> TypeIs[date]:
+    return type(obj) is date  # datetime is a subtype of date!
 
 
 @dataclass(frozen=True)
@@ -31,9 +35,9 @@ class TimeSpan(SaveLoad):
 
     @classmethod
     def from_start_and_end(cls, start: datetime | date, end: datetime | date) -> Self:
-        if type(start) == date:  # datetime is a subtype of date!
+        if _is_date(start):
             start = datetime.combine(start, time(0, 0))
-        if type(end) == date:  # datetime is a subtype of date!
+        if _is_date(end):
             end = datetime.combine(end, time(23, 59))
         if end <= start:
             raise ValueError(f"end time {end} must be greater than start time {start}")
@@ -92,7 +96,7 @@ class TimeSpan(SaveLoad):
 
         return tuple(spans)
 
-    def __sub__(self, other: TimeSpan) -> None | tuple[TimeSpan] | tuple[TimeSpan, TimeSpan]:
+    def __sub__(self, other: TimeSpan) -> tuple[()] | tuple[TimeSpan] | tuple[TimeSpan, TimeSpan]:
         return self.subtract(other)
 
 

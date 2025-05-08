@@ -1,6 +1,5 @@
 import re
-from datetime import datetime, time, timedelta, date
-from typing import Type
+from datetime import date, datetime, time, timedelta
 
 from cattrs import Converter
 
@@ -19,11 +18,11 @@ def unstructure_datetime(dt: datetime) -> str:
     unstructure to isoformat <year>-<month>-<day>T<hour>:<minute>:<second>
     """
     if dt.date() == datetime.min.date():
-        dt = dt.time()
+        return dt.time().isoformat()
     return dt.isoformat()
 
 
-def structure_datetime(dt: str | datetime, _: Type[datetime] = datetime) -> datetime:
+def structure_datetime(dt: str | datetime, _: type[datetime] = datetime) -> datetime:
     """
     structure from isoformat <year>-<month>-<day>T<hour>:<minute>:<second>
     """
@@ -50,7 +49,7 @@ def unstructure_timedelta(td: timedelta) -> str:
     return f"{td.days}T{str(timedelta(seconds=td.seconds)):>08}"
 
 
-def structure_timedelta(td_str: str, _: Type[timedelta] = timedelta) -> timedelta:
+def structure_timedelta(td_str: str, _: type[timedelta] = timedelta) -> timedelta:
     """
     structure from <days>T<hours>:<minutes>:<seconds> isoformat or special pattern
 
@@ -67,9 +66,9 @@ def structure_timedelta(td_str: str, _: Type[timedelta] = timedelta) -> timedelt
         >>> structure_timedelta("1d30m", timedelta)
         datetime.timedelta(days=1, seconds=1800)
     """
-    td_match_groups = TIME_DELTA_REGEX.match(td_str).groups()
-    if any(td_match_groups):
-        (days, hours, minutes, seconds) = td_match_groups
+    td_match = TIME_DELTA_REGEX.match(td_str)
+    if td_match and any(td_match.groups()):
+        (days, hours, minutes, seconds) = td_match.groups()
         return timedelta(
             days=int(days or 0),
             hours=int(hours or 0),
@@ -98,7 +97,7 @@ def unstructure_date(d: date) -> str:
     return d.isoformat()
 
 
-def structure_date(date_str: str, _: Type[date] = date) -> date:
+def structure_date(date_str: str, _: type[date] = date) -> date:
     """
     unstructure from isoformat YYYY-MM-DD or special form
 

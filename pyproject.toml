@@ -1,18 +1,17 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.distutils.bdist_wheel]
-python-tag = "py310"  # this fixes the python tag in the built wheel to py310 instead of just py3
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-version = "0.0.1"
+dynamic = ["version"]
 name = "tempo-worklog-cli"
 description = "CLI for creating tempo worklogs on Jira"
 readme = "README.md"
-requires-python = "==3.10.*"  # pin to 3.10
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "cattrs",
@@ -28,9 +27,77 @@ tempo = "tempo_worklog_cli.cli:cli"
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "black[d]"
+    "basedpyright",
+    "ruff"
 ]
 
-[tool.black]
+[tool.hatch.version]
+path = "src/tempo_worklog_cli/_version.py"
+
+[tool.basedpyright]
+typeCheckingMode = "recommended"
+
+# overrides of values from "recommended" profile 
+# for default values in in this mode and explanations of all parameters, see 
+# https://docs.basedpyright.com/latest/configuration/config-files/#recommended-and-all
+enableExperimentalFeatures = false
+failOnWarnings = false
+
+reportMissingParameterType = false
+reportMissingTypeStubs = false
+reportCallInDefaultInitializer = false
+reportUnnecessaryIsInstance = false
+reportUnusedCallResult = false
+reportUnusedImport = false # this is checked by ruff F401
+
+reportUnusedVariable = "warning"
+reportMissingTypeArgument = "warning"
+
+reportDuplicateImport = "error"
+reportWildcardImportFromLibrary = "error"
+reportTypeCommentUsage = "error"
+
+# block related to issues with Any (which is also used for Unknown by pyright)
+reportAny = false
+reportExplicitAny = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUnknownLambdaType = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+
+# "hint" rules only appears as a hint in the language server and are not reported in the CLI.
+# This is useful for IDEs to highlight them appropriately
+reportImportCycles = "hint"  # this is also raised for import cycles in `if TYPE_CHECKING` clauses which is undesirable
+reportUnusedClass = "hint"
+reportUnusedFunction = "hint"
+reportUnreachable = "hint"
+
+
+[tool.pytest.ini_options]
+addopts = ["-vv", "--capture=no"]  # highest verbosity level, also output print statements
+console_output_style = "count"  # show absolute enumeration of tests rather than percent
+python_files = "test_*.py"  # only consider files which start with "test_"
+testpaths = ["test/parityos", "test/parityos_addons"]
+
+[tool.ruff]
 line-length = 100
-target-version = ["py310"]
+
+[tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle: style convetions in PEP 8, e.g. indentations, whitespaces, blank lines, imports
+    "F", # pyflakes: unused imports, etc.
+    "I", # isort: sort imports
+]
+
+ignore = [
+    "E501", # this is covered by ruff format
+]
+
+[tool.lint.isort]
+lines-after-imports = 2  # blank lines after the last import statement
+lines-between-types = 1  # blank lines between different import blocks
